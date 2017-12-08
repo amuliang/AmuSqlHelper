@@ -10,7 +10,7 @@ GO
 -- Create date: <Create Date,,>
 -- Description:	<Description,,>
 -- =============================================
-ALTER PROCEDURE [dbo].[sp_amu_getPageData]
+CREATE PROCEDURE [dbo].[sp_amu_getPageData]
 	@table_name nvarchar(500),
 	@condition nvarchar(500),
 	@order_by nvarchar(500),

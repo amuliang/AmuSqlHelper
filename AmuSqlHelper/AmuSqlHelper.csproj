@@ -45,6 +45,8 @@
   <ItemGroup>
     <Compile Include="AmuSqlHelper.cs" />
     <Compile Include="AmuSqlHelperEx.cs" />
+    <Compile Include="PostPage.cs" />
+    <Compile Include="PostResult.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

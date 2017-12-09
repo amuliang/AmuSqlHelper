@@ -60,18 +60,25 @@ namespace AmuTools
             };
         }
 
-        public static T GetById<T>(string table_name, string id) where T : class, new()
+        public static T GetById<T>(string table_name, string id, string id_name = "id") where T : class, new()
         {
-            string sql_str = string.Format("select * from [{0}] where [id]='{1}'", table_name, id);
+            string sql_str = string.Format("select * from [{0}] where [{1}]='{2}'", table_name, id_name, id);
             return SqlHelper.Get(sql_str).GetFirstEntity<T>();
         }
-
-        public static T GetById<T>(string table_name, int id) where T : class, new()
+        public static T GetById<T>(string id) where T : class, new()
         {
-            return GetById<T>(table_name, id.ToString());
+            return GetById<T>(GetTableName<T>(), id, GetPrimaryKey<T>());
+        }
+        public static T GetById<T>(int id) where T : class, new()
+        {
+            return GetById<T>(GetTableName<T>(), id, GetPrimaryKey<T>());
+        }
+        public static T GetById<T>(string table_name, int id, string id_name = "id") where T : class, new()
+        {
+            return GetById<T>(table_name, id.ToString(), id_name);
         }
 
-        public static int Insert<T>(string table_name, T obj) where T : class, new()
+        public static int Insert<T>(string table_name, T obj, bool identity_insert = true, string id_name = "id") where T : class, new()
         {
             PropertyInfo[] properties = typeof(T).GetProperties();// 获得此模型的公共属性
             string columns = "";
@@ -82,32 +89,36 @@ namespace AmuTools
             for (int i = 0; i < len; i++)
             {
                 pi = properties[i];
+                if (pi.Name == id_name && identity_insert == true) continue;
                 notLast = i < len - 1;
                 columns += "[" + pi.Name + "]" + (notLast ? "," : "");
                 values += "'" + pi.GetValue(obj) + "'" + (notLast ? "," : "");
             }
             string sql_str = string.Format("insert into [{0}] ({1}) values ({2});select @@IDENTITY", table_name, columns, values);
-            SqlResult sr = SqlHelper.Set(sql_str);
-            if((pi = typeof(T).GetProperty("id")) != null ||
-                (pi = typeof(T).GetProperty("Id")) != null ||
-                (pi = typeof(T).GetProperty("ID")) != null)
+            SqlResult sr = SqlHelper.Get(sql_str);
+            if(identity_insert == true)
             {
-                pi.SetValue(sr.ScalarValue, pi.PropertyType);
+                if ((pi = typeof(T).GetProperty(id_name)) != null)
+                {
+                    pi.SetValue(obj, Convert.ChangeType(sr.ScalarValue, pi.PropertyType));
+                }
             }
             return sr.EffectedLineCount;
         }
+        public static int Insert<T>(T obj) where T : class, new()
+        {
+            return Insert<T>(GetTableName<T>(), obj, GetIdentityInsert<T>(), GetPrimaryKey<T>());
+        }
 
-        public static int Update<T>(string table_name, T obj) where T : class, new()
+        public static int Update<T>(string table_name, T obj, string id_name = "id") where T : class, new()
         {
             PropertyInfo pi;
             string id = "";
-            if ((pi = typeof(T).GetProperty("id")) != null ||
-                   (pi = typeof(T).GetProperty("Id")) != null ||
-                   (pi = typeof(T).GetProperty("ID")) != null)
+            if ((pi = typeof(T).GetProperty(id_name)) != null)
             {
                 id = pi.GetValue(obj).ToString();
             }
-            if (id == "") return 0;
+            if (id == "") throw new Exception(string.Format("更新表数据时，未向实例提供主键值，表：{0}，主键：{1}", typeof(T).Name, id_name));
 
             PropertyInfo[] properties = typeof(T).GetProperties();// 获得此模型的公共属性
             string keyvalues = "";
@@ -116,17 +127,54 @@ namespace AmuTools
             for (int i = 0; i < len; i++)
             {
                 pi = properties[i];
+                if (pi.Name == id_name) continue;
                 notLast = i < len - 1;
                 keyvalues += string.Format("[{0}]='{1}'", pi.Name, pi.GetValue(obj)) + (notLast ? "," : "");
             }
-            string sql_str = string.Format("update [{0}] set {1} where [id]='{2}'", table_name, keyvalues, id);
+            string sql_str = string.Format("update [{0}] set {1} where [{2}]='{3}'", table_name, keyvalues, id_name, id);
             return SqlHelper.Set(sql_str).EffectedLineCount;
         }
-
-        public static int Delete(string table_name, int id)
+        public static int Update<T>(T obj) where T : class, new()
         {
-            string sql_str = string.Format("delete from [{0}] where [id]='{1}'", table_name, id);
+            return Update<T>(GetTableName<T>(), obj, GetPrimaryKey<T>());
+        }
+
+        public static int Delete(string table_name, int id, string id_name = "id")
+        {
+            string sql_str = string.Format("delete from [{0}] where [{1}]='{2}'", table_name, id_name, id);
             return SqlHelper.Set(sql_str).EffectedLineCount;
+        }
+        public static int Delete<T>(int id)
+        {
+            return Delete(GetTableName<T>(), id, GetPrimaryKey<T>());
+        }
+        public static int Delete(string table_name, string id, string id_name = "id")
+        {
+            string sql_str = string.Format("delete from [{0}] where [{1}]='{2}'", table_name, id_name, id);
+            return SqlHelper.Set(sql_str).EffectedLineCount;
+        }
+        public static int Delete<T>(string id)
+        {
+            return Delete(GetTableName<T>(), id, GetPrimaryKey<T>());
+        }
+
+        private static string GetTableName<T>()
+        {
+            FieldInfo f = typeof(T).GetField("TableName");
+            if (f == null) throw new Exception("模型类" + typeof(T).Name + "未声明TableName属性，public static string TableName = \"tablename\";");
+            return f.GetValue(null).ToString();
+        }
+        private static string GetPrimaryKey<T>()
+        {
+            FieldInfo f = typeof(T).GetField("PrimaryKey");
+            if (f == null) throw new Exception("模型类" + typeof(T).Name + "未声明PrimaryKey属性，public static string PrimaryKey = \"tablename\";");
+            return f.GetValue(null).ToString();
+        }
+        private static bool GetIdentityInsert<T>()
+        {
+            FieldInfo f = typeof(T).GetField("IdentityInsert");
+            if (f == null) throw new Exception("模型类" + typeof(T).Name + "未声明IdentityInsert属性，public static bool IdentityInsert = true;");
+            return (bool)f.GetValue(null);
         }
     }
 }

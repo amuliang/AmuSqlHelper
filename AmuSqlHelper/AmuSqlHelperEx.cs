@@ -24,6 +24,11 @@ namespace AmuTools
             return GetPageData(table_name, condition, order_by, skip, take).GetFirstTableList<T>();
         }
 
+        public static List<Dictionary<string, object>> GetPageDataDicList(string table_name, string[] columns, string condition, string order_by, int skip, int take)
+        {
+            return GetPageData(table_name, condition, order_by, skip, take).GetFirstTableDicList(columns);
+        }
+
         private static SqlResult GetPageData(string table_name, string condition, string order_by, int skip, int take)
         {
             SqlParameter[] param = new SqlParameter[]
@@ -158,19 +163,19 @@ namespace AmuTools
             return Delete(GetTableName<T>(), id, GetPrimaryKey<T>());
         }
 
-        private static string GetTableName<T>()
+        public static string GetTableName<T>()
         {
             FieldInfo f = typeof(T).GetField("TableName");
             if (f == null) throw new Exception("模型类" + typeof(T).Name + "未声明TableName属性，public static string TableName = \"tablename\";");
             return f.GetValue(null).ToString();
         }
-        private static string GetPrimaryKey<T>()
+        public static string GetPrimaryKey<T>()
         {
             FieldInfo f = typeof(T).GetField("PrimaryKey");
             if (f == null) throw new Exception("模型类" + typeof(T).Name + "未声明PrimaryKey属性，public static string PrimaryKey = \"tablename\";");
             return f.GetValue(null).ToString();
         }
-        private static bool GetIdentityInsert<T>()
+        public static bool GetIdentityInsert<T>()
         {
             FieldInfo f = typeof(T).GetField("IdentityInsert");
             if (f == null) throw new Exception("模型类" + typeof(T).Name + "未声明IdentityInsert属性，public static bool IdentityInsert = true;");

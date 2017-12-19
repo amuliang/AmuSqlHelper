@@ -19,7 +19,7 @@ namespace AmuSqlHelper
         }
     }
 
-    public class Article
+    class Article
     {
         public static string TableName = "article";
         public static string PrimaryKey = "id";

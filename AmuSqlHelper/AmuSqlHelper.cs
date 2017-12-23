@@ -198,6 +198,16 @@ namespace AmuTools
         {
             return this.FirstTable != null && this.FirstTable.Rows.Count > 0 ? SqlHelper.DataTableToDicList(this.FirstTable, columns)[0] : null;
         }
+
+        public List<Dictionary<string, object>> GetFirstTableDicList<T>(int group_code = 0)
+        {
+            return SqlHelperEx.DataTableToDicList<T>(this.FirstTable, group_code);
+        }
+
+        public Dictionary<string, object> GetFirstDicEntity<T>(int group_code = 0)
+        {
+            return this.FirstTable != null && this.FirstTable.Rows.Count > 0 ? SqlHelperEx.DataTableToDicList<T>(this.FirstTable, group_code)[0] : null;
+        }
     }
     #endregion
 

@@ -5,40 +5,21 @@ using System.Web;
 using System.Data;
 using System.Data.SqlClient;
 using System.Reflection;
+using Newtonsoft.Json;
 
 namespace AmuTools
 {
     /// <summary>
-    /// HelperBLL 的摘要说明
+    /// SqlHelperEx 的摘要说明
     /// </summary>
     public class SqlHelperEx
     {
-        /*********************** ***********************************************************************************/
-        public static DataTable GetPageDataTable(string table_name, string condition, string order_by, int skip, int take)
-        {
-            return GetPageData(table_name, condition, order_by, skip, take).FirstTable;
-        }
-
-        public static List<T> GetPageDataList<T>(string table_name, string condition, string order_by, int skip, int take) where T : class, new()
-        {
-            return GetPageData(table_name, condition, order_by, skip, take).GetFirstTableList<T>();
-        }
-
-        public static List<Dictionary<string, object>> GetPageDataDicList(string table_name, string[] columns, string condition, string order_by, int skip, int take)
-        {
-            return GetPageData(table_name, condition, order_by, skip, take).GetFirstTableDicList(columns);
-        }
-
-        public static List<Dictionary<string, object>> GetPageDataDicList<T>(string condition, string order_by, int skip, int take, int group_code = 0)
-        {
-            return DataTableToDicList<T>(GetPageData(GetTableName<T>(), condition, order_by, skip, take).FirstTable, group_code);
-        }
-
-        private static SqlResult GetPageData(string table_name, string condition, string order_by, int skip, int take)
+        #region 条件list数据
+        public static SqlResult GetPage<T>(string condition, string order_by, int skip, int take)
         {
             SqlParameter[] param = new SqlParameter[]
             {
-            SqlHelper.CreateSqlParameter("@table_name", SqlDbType.NVarChar, table_name),
+            SqlHelper.CreateSqlParameter("@table_name", SqlDbType.NVarChar, GetTableName<T>()),
             SqlHelper.CreateSqlParameter("@condition", SqlDbType.NVarChar, condition),
             SqlHelper.CreateSqlParameter("@order_by", SqlDbType.NVarChar, order_by),
             SqlHelper.CreateSqlParameter("@skip", SqlDbType.Int, skip),
@@ -46,76 +27,53 @@ namespace AmuTools
             };
             return SqlHelper.Get("sp_amu_getPageData", CommandType.StoredProcedure, param);
         }
-
-        public static int GetCount(string table_name, string condition)
+        public static SqlResult Get<T>(string condition = "", string order_by = "", int size = 1000) where T : class, new()
         {
-            string sql_str = string.Format("select count(*) from {0}", table_name);
+            string order_by_str = order_by == "" ? "" : string.Format("orderby {0}", order_by);
+            string condition_str = condition == "" ? "" : string.Format("where {0}", condition);
+            string sql_str = string.Format("select top {0} * from [{1}] {2} {3}", size, GetTableName<T>(), condition_str, order_by_str);
+            return SqlHelper.Get(sql_str);
+        }
+        #endregion
+
+        #region 特殊函数
+        public static int GetCount<T>(string condition)
+        {
+            string sql_str = string.Format("select count(*) from {0}", GetTableName<T>());
             if (condition != null && condition != "")
             {
                 sql_str += " where " + condition;
             }
             return (int)SqlHelper.Get(sql_str).ScalarValue;
         }
-        public static int GetCount<T>(string condition)
-        {
-            return GetCount(GetTableName<T>(), condition);
-        }
-
         public static object GetMax<T>(string prop_name)
         {
             string sql_str = string.Format("select max({0}) from {1}", prop_name, GetTableName<T>());
             return SqlHelper.Get(sql_str).ScalarValue == null ? 0 : SqlHelper.Get(sql_str).ScalarValue;
         }
-
-        public static bool IsOne<T>(string where)
+        public static bool IsOne<T>(string condition)
         {
-            string where_str = where == null || where == "" ? "" : string.Format(" where {0}", where);
+            string where_str = condition == null || condition == "" ? "" : string.Format(" where {0}", condition);
             string sql_str = string.Format("select count(*) from {0} {1}", GetTableName<T>(), where_str);
             return (int)SqlHelper.Get(sql_str).ScalarValue == 1;
         }
+        #endregion
 
-        public static PostPage<T> GetPostPage<T>(string table_name, string condition, string order_by, int page, int count) where T : class, new()
-        {
-            return new PostPage<T>()
-            {
-                page = page,
-                count = count,
-                total = GetCount(table_name, condition),
-                condition = condition,
-                orderby = order_by,
-                list = GetPageData(table_name, condition, order_by, (page-1)*count, count).GetFirstTableList<T>()
-            };
-        }
-
-        public static T GetById<T>(string table_name, string id, string id_name = "id") where T : class, new()
-        {
-            string sql_str = string.Format("select * from [{0}] where [{1}]='{2}'", table_name, id_name, id);
-            return SqlHelper.Get(sql_str).GetFirstEntity<T>();
-        }
+        #region 增删改查
         public static T GetById<T>(string id) where T : class, new()
         {
-            return GetById<T>(GetTableName<T>(), id, GetPrimaryKey<T>());
-        }
-        public static T GetById<T>(string table_name, int id, string id_name = "id") where T : class, new()
-        {
-            return GetById<T>(table_name, id.ToString(), id_name);
+            ModelAttribute ma = GetModelAttribute<T>();
+            string sql_str = string.Format("select * from [{0}] where [{1}]='{2}'", ma.TableName, ma.PrimaryKey, id);
+            return SqlHelper.Get(sql_str).GetFirstEntity<T>();
         }
         public static T GetById<T>(int id) where T : class, new()
         {
-            return GetById<T>(GetTableName<T>(), id, GetPrimaryKey<T>());
+            return GetById<T>(id.ToString());
         }
-        public static Dictionary<string, object> GetDicById<T>(string id, int group_code = 0)
+        
+        public static int Insert<T>(T obj) where T : class, new()
         {
-            string sql_str = string.Format("select * from [{0}] where [{1}]='{2}'", GetTableName<T>(), GetPrimaryKey<T>(), id);
-            return SqlHelper.Get(sql_str).GetFirstDicEntity<T>(group_code);
-        }
-        public static Dictionary<string, object> GetDicById<T>(int id, int group_code = 0)
-        {
-            return GetDicById<T>(id.ToString(), group_code);
-        }
-
-        public static int Insert<T>(string table_name, T obj, bool identity_insert = true, string id_name = "id") where T : class, new()
-        {
+            ModelAttribute ma = GetModelAttribute<T>();
             PropertyInfo[] properties = GetStorageablePropertys<T>();// 获得此模型的公共属性
             string columns = "";
             string values = "";
@@ -125,36 +83,33 @@ namespace AmuTools
             for (int i = 0; i < len; i++)
             {
                 pi = properties[i];
-                if (pi.Name == id_name && identity_insert == true) continue;
+                if (pi.Name == ma.PrimaryKey && ma.IdentityInsert == true) continue;
                 notLast = i < len - 1;
                 columns += "[" + pi.Name + "]" + (notLast ? "," : "");
                 values += "'" + pi.GetValue(obj) + "'" + (notLast ? "," : "");
             }
-            string sql_str = string.Format("insert into [{0}] ({1}) values ({2});select @@IDENTITY", table_name, columns, values);
+            string sql_str = string.Format("insert into [{0}] ({1}) values ({2});select @@IDENTITY", ma.TableName, columns, values);
             SqlResult sr = SqlHelper.Get(sql_str);
-            if(identity_insert == true)
+            if (ma.IdentityInsert == true)
             {
-                if ((pi = typeof(T).GetProperty(id_name)) != null)
+                if ((pi = typeof(T).GetProperty(ma.PrimaryKey)) != null)
                 {
                     pi.SetValue(obj, Convert.ChangeType(sr.ScalarValue, pi.PropertyType));
                 }
             }
             return sr.EffectedLineCount;
         }
-        public static int Insert<T>(T obj) where T : class, new()
+        
+        public static int Update<T>(T obj) where T : class, new()
         {
-            return Insert<T>(GetTableName<T>(), obj, GetIdentityInsert<T>(), GetPrimaryKey<T>());
-        }
-
-        public static int Update<T>(string table_name, T obj, string id_name = "id") where T : class, new()
-        {
+            ModelAttribute ma = GetModelAttribute<T>();
             PropertyInfo pi;
             string id = "";
-            if ((pi = typeof(T).GetProperty(id_name)) != null)
+            if ((pi = typeof(T).GetProperty(ma.PrimaryKey)) != null)
             {
                 id = pi.GetValue(obj).ToString();
             }
-            if (id == "") throw new Exception(string.Format("更新表数据时，未向实例提供主键值，表：{0}，主键：{1}", typeof(T).Name, id_name));
+            if (id == "") throw new Exception(string.Format("更新表数据时，未向实例提供主键值，表：{0}，主键：{1}", typeof(T).Name, ma.PrimaryKey));
 
             PropertyInfo[] properties = GetStorageablePropertys<T>();// 获得此模型的公共属性
             string keyvalues = "";
@@ -163,56 +118,37 @@ namespace AmuTools
             for (int i = 0; i < len; i++)
             {
                 pi = properties[i];
-                if (pi.Name == id_name) continue;
+                if (pi.Name == ma.PrimaryKey) continue;
                 notLast = i < len - 1;
                 keyvalues += string.Format("[{0}]='{1}'", pi.Name, pi.GetValue(obj)) + (notLast ? "," : "");
             }
-            string sql_str = string.Format("update [{0}] set {1} where [{2}]='{3}'", table_name, keyvalues, id_name, id);
+            string sql_str = string.Format("update [{0}] set {1} where [{2}]='{3}'", ma.TableName, keyvalues, ma.PrimaryKey, id);
             return SqlHelper.Set(sql_str).EffectedLineCount;
         }
-        public static int Update<T>(T obj) where T : class, new()
-        {
-            return Update<T>(GetTableName<T>(), obj, GetPrimaryKey<T>());
-        }
-
-        public static int Delete(string table_name, int id, string id_name = "id")
-        {
-            string sql_str = string.Format("delete from [{0}] where [{1}]='{2}'", table_name, id_name, id);
-            return SqlHelper.Set(sql_str).EffectedLineCount;
-        }
+        
         public static int Delete<T>(int id)
         {
-            return Delete(GetTableName<T>(), id, GetPrimaryKey<T>());
-        }
-        public static int Delete(string table_name, string id, string id_name = "id")
-        {
-            string sql_str = string.Format("delete from [{0}] where [{1}]='{2}'", table_name, id_name, id);
-            return SqlHelper.Set(sql_str).EffectedLineCount;
+            return Delete<T>(id.ToString());
         }
         public static int Delete<T>(string id)
         {
-            return Delete(GetTableName<T>(), id, GetPrimaryKey<T>());
+            ModelAttribute ma = GetModelAttribute<T>();
+            string sql_str = string.Format("delete from [{0}] where [{1}]='{2}'", ma.TableName, ma.PrimaryKey, id);
+            return SqlHelper.Set(sql_str).EffectedLineCount;
         }
+        #endregion
 
+        #region Attribute相关函数
         public static string GetTableName<T>()
         {
-            //FieldInfo f = typeof(T).GetField("TableName");
-            //if (f == null) throw new Exception("模型类" + typeof(T).Name + "未声明TableName属性，public static string TableName = \"tablename\";");
-            //return f.GetValue(null).ToString();
             return GetModelAttribute<T>().TableName;
         }
         public static string GetPrimaryKey<T>()
         {
-            //FieldInfo f = typeof(T).GetField("PrimaryKey");
-            //if (f == null) throw new Exception("模型类" + typeof(T).Name + "未声明PrimaryKey属性，public static string PrimaryKey = \"tablename\";");
-            //return f.GetValue(null).ToString();
             return GetModelAttribute<T>().PrimaryKey;
         }
         public static bool GetIdentityInsert<T>()
         {
-            //FieldInfo f = typeof(T).GetField("IdentityInsert");
-            //if (f == null) throw new Exception("模型类" + typeof(T).Name + "未声明IdentityInsert属性，public static bool IdentityInsert = true;");
-            //return (bool)f.GetValue(null);
             return GetModelAttribute<T>().IdentityInsert;
         }
         public static ModelAttribute GetModelAttribute<T>()
@@ -239,50 +175,25 @@ namespace AmuTools
         }
         public static PropertyInfo[] GetWebablePropertys<T>(int group_code = 0)
         {
-            PropertyInfo[] properties = typeof(T).GetProperties();// 获得此模型的公共属性
+            return GetWebablePropertys(typeof(T), group_code);
+        }
+        public static PropertyInfo[] GetWebablePropertys(Type type, int group_code = 0)
+        {
+            PropertyInfo[] properties = type.GetProperties();// 获得此模型的公共属性
             List<PropertyInfo> result = new List<PropertyInfo>();
             foreach (PropertyInfo pi in properties)
             {
                 FieldAttribute fa = pi.GetCustomAttribute<FieldAttribute>();
                 if (fa == null) result.Add(pi);
-                else if(fa.Webable && (group_code == 0 || fa.Groups.Contains<int>(group_code))) result.Add(pi);
+                else if (fa.Webable && (group_code == 0 || fa.Groups.Contains<int>(group_code))) result.Add(pi);
             }
             return result.ToArray();
         }
+        #endregion
 
-        public static List<Dictionary<string, object>> ListToDicList<T>(List<T> list, int group_code = 0)
+        #region 转字典函数
+        private static Dictionary<string, object> ToDicByProps<T>(T model, PropertyInfo[] pis)
         {
-            PropertyInfo[] pis = GetWebablePropertys<T>();
-            List<Dictionary<string, object>> result = new List<Dictionary<string, object>>();
-            foreach(T item in list)
-            {
-                Dictionary<string, object> temp = new Dictionary<string, object>();
-                foreach(PropertyInfo pi in pis)
-                {
-                    temp.Add(pi.Name, pi.GetValue(item));
-                }
-                result.Add(temp);
-            }
-            return result;
-        }
-        public static List<Dictionary<string, object>> DataTableToDicList<T>(DataTable dt, int group_code = 0)
-        {
-            PropertyInfo[] pis = GetWebablePropertys<T>();
-            List<Dictionary<string, object>> result = new List<Dictionary<string, object>>();
-            foreach (DataRow item in dt.Rows)
-            {
-                Dictionary<string, object> temp = new Dictionary<string, object>();
-                foreach (PropertyInfo pi in pis)
-                {
-                    temp.Add(pi.Name, item[pi.Name]);
-                }
-                result.Add(temp);
-            }
-            return result;
-        }
-        public static Dictionary<string, object> ModelToDic<T>(T model, int group_code = 0)
-        {
-            PropertyInfo[] pis = GetWebablePropertys<T>();
             Dictionary<string, object> temp = new Dictionary<string, object>();
             foreach (PropertyInfo pi in pis)
             {
@@ -290,8 +201,100 @@ namespace AmuTools
             }
             return temp;
         }
+        private static List<Dictionary<string, object>> ToDicListByProps<T>(List<T> list, PropertyInfo[] pis)
+        {
+            List<Dictionary<string, object>> result = new List<Dictionary<string, object>>();
+            foreach (T item in list)
+            {
+                Dictionary<string, object> temp = ToDicByProps<T>(item, pis);
+                result.Add(temp);
+            }
+            return result;
+        }
+        private static PropertyInfo[] GetValidPropertys<T>(string[] columns)
+        {
+            PropertyInfo[] pis = typeof(T).GetProperties();
+            if (columns == null) return pis;
+            List<PropertyInfo> result = new List<PropertyInfo>();
+            foreach (PropertyInfo pi in pis)
+            {
+                if (columns.Contains<string>(pi.Name)) result.Add(pi);
+            }
+            return result.ToArray();
+        }
+
+        public static Dictionary<string, object> ToDic<T>(T model, int group_code = 0)
+        {
+            PropertyInfo[] pis = GetWebablePropertys<T>(group_code);
+            return ToDicByProps<T>(model, pis);
+        }
+        public static Dictionary<string, object> ToDic<T>(T model, string[] columns)
+        {
+            PropertyInfo[] pis = GetValidPropertys<T>(columns);
+            return ToDicByProps<T>(model, pis);
+        }
+        public static List<Dictionary<string, object>> ToDic<T>(List<T> list, int group_code = 0)
+        {
+            PropertyInfo[] pis = GetWebablePropertys<T>(group_code);
+            return ToDicListByProps<T>(list, pis);
+        }
+        public static List<Dictionary<string, object>> ToDic<T>(List<T> list, string[] columns)
+        {
+            PropertyInfo[] pis = GetValidPropertys<T>(columns);
+            return ToDicListByProps<T>(list, pis);
+        }
+
+        public static string ToJson(object obj, int group_code = 0)
+        {
+            JsonSerializerSettings setting = new JsonSerializerSettings();
+            setting.Converters.Add(new ModelConvert(group_code));
+            return JsonConvert.SerializeObject(obj, Formatting.Indented, setting);
+        }
+
+
+        //private static Dictionary<string, object> ToDicByProps<T>(DataRow dr, PropertyInfo[] pis)
+        //{
+        //    Dictionary<string, object> temp = new Dictionary<string, object>();
+        //    foreach (PropertyInfo pi in pis)
+        //    {
+        //        temp.Add(pi.Name, dr[pi.Name]);
+        //    }
+        //    return temp;
+        //}
+        //private static List<Dictionary<string, object>> ToDicListByProps<T>(DataTable dt, PropertyInfo[] pis)
+        //{
+        //    List<Dictionary<string, object>> result = new List<Dictionary<string, object>>();
+        //    foreach (DataRow item in dt.Rows)
+        //    {
+        //        Dictionary<string, object> temp = ToDicByProps<T>(item, pis);
+        //        result.Add(temp);
+        //    }
+        //    return result;
+        //}
+        //private static string[] GetValidPropertys(DataTable dt, string[] columns)
+        //{
+        //    List<string> result = new List<string>();
+        //    foreach (string p in columns)
+        //    {
+        //        if (dt.Columns.Contains(p)) result.Add(p);
+        //    }
+        //    return result.ToArray();
+        //}
+
+        //public static List<Dictionary<string, object>> ToDicList<T>(DataTable dt, int group_code = 0)
+        //{
+        //    PropertyInfo[] pis = GetWebablePropertys<T>(group_code);
+        //    return ToDicListByProps<T>(dt, pis);
+        //}
+        //public static List<Dictionary<string, object>> ToDicList<T>(DataTable dt, string[] columns = null)
+        //{
+        //    PropertyInfo[] pis = GetValidPropertys<T>(columns);
+        //    return ToDicListByProps<T>(dt, pis);
+        //}
+        #endregion
     }
 
+    #region Attribute类
     [AttributeUsage(AttributeTargets.Class)]
     public class ModelAttribute : Attribute
     {
@@ -322,4 +325,48 @@ namespace AmuTools
             Groups = new int[] { };
         }
     }
+
+    public class ModelConvert : JsonConverter
+    {
+        private int group_code = 0;
+        private Type current_type = null;
+
+        public ModelConvert(int the_group_code = 0)
+        {
+            group_code = the_group_code;
+        }
+
+        public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+        {
+            return existingValue;
+        }
+        
+        public override bool CanConvert(Type objectType)
+        {
+            bool b = objectType.GetCustomAttribute<ModelAttribute>() != null;
+            if(b) current_type = objectType;
+            return b;
+        }
+
+        public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
+        {
+            if (value == null)
+            {
+                writer.WriteNull();
+                return;
+            }
+
+            // 循环属性，每个属性再序列化，输出
+            PropertyInfo[] pis = SqlHelperEx.GetWebablePropertys(current_type, group_code);
+
+            writer.WriteStartObject();
+            foreach(PropertyInfo pi in pis)
+            {
+                writer.WritePropertyName(pi.Name);
+                writer.WriteRawValue(SqlHelperEx.ToJson(pi.GetValue(value), group_code));
+            }
+            writer.WriteEndObject();
+        }
+    }
+    #endregion
 }

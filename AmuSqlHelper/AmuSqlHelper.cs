@@ -98,10 +98,6 @@ namespace AmuTools
         {
             return dt == null ? null : ConvertEx.DataTableToList<T>(dt);
         }
-        public static List<Dictionary<string, object>> DataTableToDicList(DataTable dt, string[] columns)
-        {
-            return dt == null ? null : ConvertEx.DataTableToDicList(dt, columns);
-        }
         public static SqlParameter CreateSqlParameter(string name, SqlDbType dbtype)
         {
             SqlParameter param = new SqlParameter();
@@ -183,59 +179,32 @@ namespace AmuTools
         {
             return SqlHelper.DataTableToList<T>(this.FirstTable);
         }
+        public List<Dictionary<string, object>> GetFirstTableDicList<T>(string[] columns) where T : class, new()
+        {
+            return SqlHelperEx.ToDic<T>(this.GetFirstTableList<T>(), columns);
+        }
+        public List<Dictionary<string, object>> GetFirstTableDicList<T>(int group_code = 0) where T : class, new()
+        {
+            return SqlHelperEx.ToDic<T>(this.GetFirstTableList<T>(), group_code);
+        }
 
         public T GetFirstEntity<T>() where T : class, new()
         {
             return this.FirstTable != null && this.FirstTable.Rows.Count > 0 ? SqlHelper.DataTableToList<T>(this.FirstTable)[0] : null;
         }
-
-        public List<Dictionary<string, object>> GetFirstTableDicList(string[] columns)
+        public Dictionary<string, object> GetFirstDicEntity<T>(string[] columns) where T : class, new()
         {
-            return SqlHelper.DataTableToDicList(this.FirstTable, columns);
+            return this.FirstTable != null && this.FirstTable.Rows.Count > 0 ? SqlHelperEx.ToDic<T>(this.GetFirstEntity<T>(), columns) : null;
         }
-
-        public Dictionary<string, object> GetFirstDicEntity(string[] columns)
+        public Dictionary<string, object> GetFirstDicEntity<T>(int group_code = 0) where T : class, new()
         {
-            return this.FirstTable != null && this.FirstTable.Rows.Count > 0 ? SqlHelper.DataTableToDicList(this.FirstTable, columns)[0] : null;
-        }
-
-        public List<Dictionary<string, object>> GetFirstTableDicList<T>(int group_code = 0)
-        {
-            return SqlHelperEx.DataTableToDicList<T>(this.FirstTable, group_code);
-        }
-
-        public Dictionary<string, object> GetFirstDicEntity<T>(int group_code = 0)
-        {
-            return this.FirstTable != null && this.FirstTable.Rows.Count > 0 ? SqlHelperEx.DataTableToDicList<T>(this.FirstTable, group_code)[0] : null;
+            return this.FirstTable != null && this.FirstTable.Rows.Count > 0 ? SqlHelperEx.ToDic<T>(this.GetFirstEntity<T>(), group_code) : null;
         }
     }
     #endregion
 
     static class ConvertEx
     {
-        public static List<Dictionary<string, object>> DataTableToDicList(DataTable dt, string[] columns)
-        {
-            // 首先找到包含在datable中的列
-            List<string> properties = new List<string>();
-            foreach (string p in columns)
-            {
-                if (dt.Columns.Contains(p)) properties.Add(p);
-            }
-
-            // 构造dictionary
-            List<Dictionary<string, object>> ts = new List<Dictionary<string, object>>();// 定义集合
-            foreach (DataRow dr in dt.Rows)
-            {
-                Dictionary<string, object> t = new Dictionary<string, object>();
-                foreach (string p in properties)
-                {
-                    t.Add(p, dr[p]);
-                }
-                ts.Add(t);
-            }
-            return ts;
-        }
-
         public static List<T> DataTableToList<T>(DataTable dt) where T : class, new()
         {
             // 首先找到所有可以设置的属性，判断属性是否可写入，是否包含在datatable中

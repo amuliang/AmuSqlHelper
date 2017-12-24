@@ -191,110 +191,17 @@ namespace AmuTools
         }
         #endregion
 
-        #region 转字典函数
-        private static Dictionary<string, object> ToDicByProps<T>(T model, PropertyInfo[] pis)
-        {
-            Dictionary<string, object> temp = new Dictionary<string, object>();
-            foreach (PropertyInfo pi in pis)
-            {
-                temp.Add(pi.Name, pi.GetValue(model));
-            }
-            return temp;
-        }
-        private static List<Dictionary<string, object>> ToDicListByProps<T>(List<T> list, PropertyInfo[] pis)
-        {
-            List<Dictionary<string, object>> result = new List<Dictionary<string, object>>();
-            foreach (T item in list)
-            {
-                Dictionary<string, object> temp = ToDicByProps<T>(item, pis);
-                result.Add(temp);
-            }
-            return result;
-        }
-        private static PropertyInfo[] GetValidPropertys<T>(string[] columns)
-        {
-            PropertyInfo[] pis = typeof(T).GetProperties();
-            if (columns == null) return pis;
-            List<PropertyInfo> result = new List<PropertyInfo>();
-            foreach (PropertyInfo pi in pis)
-            {
-                if (columns.Contains<string>(pi.Name)) result.Add(pi);
-            }
-            return result.ToArray();
-        }
-
-        public static Dictionary<string, object> ToDic<T>(T model, int group_code = 0)
-        {
-            PropertyInfo[] pis = GetWebablePropertys<T>(group_code);
-            return ToDicByProps<T>(model, pis);
-        }
-        public static Dictionary<string, object> ToDic<T>(T model, string[] columns)
-        {
-            PropertyInfo[] pis = GetValidPropertys<T>(columns);
-            return ToDicByProps<T>(model, pis);
-        }
-        public static List<Dictionary<string, object>> ToDic<T>(List<T> list, int group_code = 0)
-        {
-            PropertyInfo[] pis = GetWebablePropertys<T>(group_code);
-            return ToDicListByProps<T>(list, pis);
-        }
-        public static List<Dictionary<string, object>> ToDic<T>(List<T> list, string[] columns)
-        {
-            PropertyInfo[] pis = GetValidPropertys<T>(columns);
-            return ToDicListByProps<T>(list, pis);
-        }
-
+        #region 转JSON
         public static string ToJson(object obj, int group_code = 0)
         {
             JsonSerializerSettings setting = new JsonSerializerSettings();
             setting.Converters.Add(new ModelConvert(group_code));
             return JsonConvert.SerializeObject(obj, Formatting.Indented, setting);
         }
-
-
-        //private static Dictionary<string, object> ToDicByProps<T>(DataRow dr, PropertyInfo[] pis)
-        //{
-        //    Dictionary<string, object> temp = new Dictionary<string, object>();
-        //    foreach (PropertyInfo pi in pis)
-        //    {
-        //        temp.Add(pi.Name, dr[pi.Name]);
-        //    }
-        //    return temp;
-        //}
-        //private static List<Dictionary<string, object>> ToDicListByProps<T>(DataTable dt, PropertyInfo[] pis)
-        //{
-        //    List<Dictionary<string, object>> result = new List<Dictionary<string, object>>();
-        //    foreach (DataRow item in dt.Rows)
-        //    {
-        //        Dictionary<string, object> temp = ToDicByProps<T>(item, pis);
-        //        result.Add(temp);
-        //    }
-        //    return result;
-        //}
-        //private static string[] GetValidPropertys(DataTable dt, string[] columns)
-        //{
-        //    List<string> result = new List<string>();
-        //    foreach (string p in columns)
-        //    {
-        //        if (dt.Columns.Contains(p)) result.Add(p);
-        //    }
-        //    return result.ToArray();
-        //}
-
-        //public static List<Dictionary<string, object>> ToDicList<T>(DataTable dt, int group_code = 0)
-        //{
-        //    PropertyInfo[] pis = GetWebablePropertys<T>(group_code);
-        //    return ToDicListByProps<T>(dt, pis);
-        //}
-        //public static List<Dictionary<string, object>> ToDicList<T>(DataTable dt, string[] columns = null)
-        //{
-        //    PropertyInfo[] pis = GetValidPropertys<T>(columns);
-        //    return ToDicListByProps<T>(dt, pis);
-        //}
         #endregion
     }
 
-    #region Attribute类
+    #region Attribute类,JsonConverter类
     [AttributeUsage(AttributeTargets.Class)]
     public class ModelAttribute : Attribute
     {
@@ -315,6 +222,7 @@ namespace AmuTools
         public bool Storageable { get; set; } // 是否是数据库字段,是否可存储
         public bool Webable { get; set; } // 是否可以被渲染到前端
         public bool Nullable { get; set; } // 是否允许为null
+        public string DataType { get; set; } // 数据类型
         public int[] Groups { get; set; }
 
         public FieldAttribute()

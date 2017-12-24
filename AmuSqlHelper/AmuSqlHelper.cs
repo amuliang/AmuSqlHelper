@@ -98,6 +98,7 @@ namespace AmuTools
         {
             return dt == null ? null : ConvertEx.DataTableToList<T>(dt);
         }
+
         public static SqlParameter CreateSqlParameter(string name, SqlDbType dbtype)
         {
             SqlParameter param = new SqlParameter();
@@ -179,26 +180,10 @@ namespace AmuTools
         {
             return SqlHelper.DataTableToList<T>(this.FirstTable);
         }
-        public List<Dictionary<string, object>> GetFirstTableDicList<T>(string[] columns) where T : class, new()
-        {
-            return SqlHelperEx.ToDic<T>(this.GetFirstTableList<T>(), columns);
-        }
-        public List<Dictionary<string, object>> GetFirstTableDicList<T>(int group_code = 0) where T : class, new()
-        {
-            return SqlHelperEx.ToDic<T>(this.GetFirstTableList<T>(), group_code);
-        }
 
         public T GetFirstEntity<T>() where T : class, new()
         {
             return this.FirstTable != null && this.FirstTable.Rows.Count > 0 ? SqlHelper.DataTableToList<T>(this.FirstTable)[0] : null;
-        }
-        public Dictionary<string, object> GetFirstDicEntity<T>(string[] columns) where T : class, new()
-        {
-            return this.FirstTable != null && this.FirstTable.Rows.Count > 0 ? SqlHelperEx.ToDic<T>(this.GetFirstEntity<T>(), columns) : null;
-        }
-        public Dictionary<string, object> GetFirstDicEntity<T>(int group_code = 0) where T : class, new()
-        {
-            return this.FirstTable != null && this.FirstTable.Rows.Count > 0 ? SqlHelperEx.ToDic<T>(this.GetFirstEntity<T>(), group_code) : null;
         }
     }
     #endregion

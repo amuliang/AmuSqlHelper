@@ -234,8 +234,11 @@ namespace AmuTools
                 foreach (Type t in table_list)
                 {
                     if (TestTableExists(t)) CheckFields(t);
-                    else CreateTable(t);
-                    AddInitData(t);
+                    else
+                    {
+                        CreateTable(t);
+                        AddInitData(t);
+                    }
                 }
                 // 创建存储过程
                 if (stored_precedures != null) {

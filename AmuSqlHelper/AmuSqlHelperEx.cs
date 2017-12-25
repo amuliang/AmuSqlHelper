@@ -337,8 +337,9 @@ namespace AmuTools
         }
         public bool TestDatabaseExists()
         {
+            SqlHelper MDB = new SqlHelper(this.ServerName, "master", this.UserName, this.Password);
             string test_str = string.Format("if exists(select * from sys.databases where name = '{0}') begin select 1 end else begin select 0 end", this.DatabaseName);
-            return (int)Get(test_str).ScalarValue == 1;
+            return (int)MDB.Get(test_str).ScalarValue == 1;
         }
         private bool TestTableExists(Type type)
         {

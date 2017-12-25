@@ -6,75 +6,78 @@ using System.Data;
 using System.Data.SqlClient;
 using System.Reflection;
 using Newtonsoft.Json;
+using System.Text.RegularExpressions;
+using System.IO;
 
 namespace AmuTools
 {
     /// <summary>
     /// SqlHelperEx 的摘要说明
     /// </summary>
-    public class SqlHelperEx
+    public partial class SqlHelper
     {
         #region 条件list数据
-        public static SqlResult GetPage<T>(string condition, string order_by, int skip, int take)
+        public SqlResult GetPage<T>(string condition, string order_by, int skip, int take)
         {
             SqlParameter[] param = new SqlParameter[]
             {
-            SqlHelper.CreateSqlParameter("@table_name", SqlDbType.NVarChar, GetTableName<T>()),
-            SqlHelper.CreateSqlParameter("@condition", SqlDbType.NVarChar, condition),
-            SqlHelper.CreateSqlParameter("@order_by", SqlDbType.NVarChar, order_by),
-            SqlHelper.CreateSqlParameter("@skip", SqlDbType.Int, skip),
-            SqlHelper.CreateSqlParameter("@take", SqlDbType.Int, take)
+                CreateSqlParameter("@table_name", SqlDbType.NVarChar, GetTableName<T>()),
+                CreateSqlParameter("@condition", SqlDbType.NVarChar, condition),
+                CreateSqlParameter("@order_by", SqlDbType.NVarChar, order_by),
+                CreateSqlParameter("@skip", SqlDbType.Int, skip),
+                CreateSqlParameter("@take", SqlDbType.Int, take)
             };
-            return SqlHelper.Get("sp_amu_getPageData", CommandType.StoredProcedure, param);
+            return Get("sp_amu_getPageData", CommandType.StoredProcedure, param);
         }
-        public static SqlResult Get<T>(string condition = "", string order_by = "", int size = 1000) where T : class, new()
+        public SqlResult Get<T>(string condition = "", string order_by = "", int size = 1000) where T : class, new()
         {
             string order_by_str = order_by == "" ? "" : string.Format("orderby {0}", order_by);
             string condition_str = condition == "" ? "" : string.Format("where {0}", condition);
             string sql_str = string.Format("select top {0} * from [{1}] {2} {3}", size, GetTableName<T>(), condition_str, order_by_str);
-            return SqlHelper.Get(sql_str);
+            return Get(sql_str);
         }
         #endregion
 
         #region 特殊函数
-        public static int GetCount<T>(string condition)
+        public int GetCount<T>(string condition)
         {
             string sql_str = string.Format("select count(*) from {0}", GetTableName<T>());
             if (condition != null && condition != "")
             {
                 sql_str += " where " + condition;
             }
-            return (int)SqlHelper.Get(sql_str).ScalarValue;
+            return (int)Get(sql_str).ScalarValue;
         }
-        public static object GetMax<T>(string prop_name)
+        public object GetMax<T>(string prop_name)
         {
             string sql_str = string.Format("select max({0}) from {1}", prop_name, GetTableName<T>());
-            return SqlHelper.Get(sql_str).ScalarValue == null ? 0 : SqlHelper.Get(sql_str).ScalarValue;
+            object result = Get(sql_str).ScalarValue;
+            return result == null ? 0 : result;
         }
-        public static bool IsOne<T>(string condition)
+        public bool IsOne<T>(string condition)
         {
             string where_str = condition == null || condition == "" ? "" : string.Format(" where {0}", condition);
             string sql_str = string.Format("select count(*) from {0} {1}", GetTableName<T>(), where_str);
-            return (int)SqlHelper.Get(sql_str).ScalarValue == 1;
+            return (int)Get(sql_str).ScalarValue == 1;
         }
         #endregion
 
         #region 增删改查
-        public static T GetById<T>(string id) where T : class, new()
+        public T GetById<T>(string id) where T : class, new()
         {
             ModelAttribute ma = GetModelAttribute<T>();
             string sql_str = string.Format("select * from [{0}] where [{1}]='{2}'", ma.TableName, ma.PrimaryKey, id);
-            return SqlHelper.Get(sql_str).GetFirstEntity<T>();
+            return Get(sql_str).GetFirstEntity<T>();
         }
-        public static T GetById<T>(int id) where T : class, new()
+        public T GetById<T>(int id) where T : class, new()
         {
             return GetById<T>(id.ToString());
         }
         
-        public static int Insert<T>(T obj) where T : class, new()
+        private int Insert(Type type, object obj)
         {
-            ModelAttribute ma = GetModelAttribute<T>();
-            PropertyInfo[] properties = GetStorageablePropertys<T>();// 获得此模型的公共属性
+            ModelAttribute ma = GetModelAttribute(type);
+            PropertyInfo[] properties = GetStorageablePropertys(type);// 获得此模型的公共属性
             string columns = "";
             string values = "";
             int len = properties.Length;
@@ -89,18 +92,22 @@ namespace AmuTools
                 values += "'" + pi.GetValue(obj) + "'" + (notLast ? "," : "");
             }
             string sql_str = string.Format("insert into [{0}] ({1}) values ({2});select @@IDENTITY", ma.TableName, columns, values);
-            SqlResult sr = SqlHelper.Get(sql_str);
+            SqlResult sr = Get(sql_str);
             if (ma.IdentityInsert == true)
             {
-                if ((pi = typeof(T).GetProperty(ma.PrimaryKey)) != null)
+                if ((pi = type.GetProperty(ma.PrimaryKey)) != null)
                 {
                     pi.SetValue(obj, Convert.ChangeType(sr.ScalarValue, pi.PropertyType));
                 }
             }
             return sr.EffectedLineCount;
         }
+        public int Insert<T>(T obj) where T : class, new()
+        {
+            return Insert(typeof(T), obj);
+        }
         
-        public static int Update<T>(T obj) where T : class, new()
+        public int Update<T>(T obj) where T : class, new()
         {
             ModelAttribute ma = GetModelAttribute<T>();
             PropertyInfo pi;
@@ -123,57 +130,70 @@ namespace AmuTools
                 keyvalues += string.Format("[{0}]='{1}'", pi.Name, pi.GetValue(obj)) + (notLast ? "," : "");
             }
             string sql_str = string.Format("update [{0}] set {1} where [{2}]='{3}'", ma.TableName, keyvalues, ma.PrimaryKey, id);
-            return SqlHelper.Set(sql_str).EffectedLineCount;
+            return Set(sql_str).EffectedLineCount;
         }
         
-        public static int Delete<T>(int id)
+        public int Delete<T>(int id)
         {
             return Delete<T>(id.ToString());
         }
-        public static int Delete<T>(string id)
+        public int Delete<T>(string id)
         {
             ModelAttribute ma = GetModelAttribute<T>();
             string sql_str = string.Format("delete from [{0}] where [{1}]='{2}'", ma.TableName, ma.PrimaryKey, id);
-            return SqlHelper.Set(sql_str).EffectedLineCount;
+            return Set(sql_str).EffectedLineCount;
         }
         #endregion
 
         #region Attribute相关函数
-        public static string GetTableName<T>()
+        public string GetTableName<T>()
         {
-            return GetModelAttribute<T>().TableName;
+            return GetTableName(typeof(T));
         }
-        public static string GetPrimaryKey<T>()
+        private static string GetTableName(Type type)
+        {
+            return GetModelAttribute(type).TableName;
+        }
+        public string GetPrimaryKey<T>()
         {
             return GetModelAttribute<T>().PrimaryKey;
         }
-        public static bool GetIdentityInsert<T>()
+        public bool GetIdentityInsert<T>()
         {
             return GetModelAttribute<T>().IdentityInsert;
         }
-        public static ModelAttribute GetModelAttribute<T>()
+        public ModelAttribute GetModelAttribute<T>()
         {
-            ModelAttribute m = typeof(T).GetCustomAttribute<ModelAttribute>();
-            if(m == null)
+            return GetModelAttribute(typeof(T));
+        }
+        private static ModelAttribute GetModelAttribute(Type type)
+        {
+            ModelAttribute m = type.GetCustomAttribute<ModelAttribute>();
+            if (m == null)
             {
-                throw new Exception("模型类" + typeof(T).Name + "未使用ModelAttribute，[Model(TableName = \"t_article\", PrimaryKey = \"id\", IdentityInsert = true)]");
-            }else
+                throw new Exception("模型类" + type.Name + "未使用ModelAttribute，[Model(TableName = \"t_article\", PrimaryKey = \"id\", IdentityInsert = true)]");
+            }
+            else
             {
                 return m;
             }
         }
-        public static PropertyInfo[] GetStorageablePropertys<T>()
+        public PropertyInfo[] GetStorageablePropertys<T>()
         {
-            PropertyInfo[] properties = typeof(T).GetProperties();// 获得此模型的公共属性
+            return GetStorageablePropertys(typeof(T));
+        }
+        private static PropertyInfo[] GetStorageablePropertys(Type type)
+        {
+            PropertyInfo[] properties = type.GetProperties();// 获得此模型的公共属性
             List<PropertyInfo> result = new List<PropertyInfo>();
-            foreach(PropertyInfo pi in properties)
+            foreach (PropertyInfo pi in properties)
             {
                 FieldAttribute fa = pi.GetCustomAttribute<FieldAttribute>();
                 if (fa == null || fa.Storageable) result.Add(pi);
             }
             return result.ToArray();
         }
-        public static PropertyInfo[] GetWebablePropertys<T>(int group_code = 0)
+        public PropertyInfo[] GetWebablePropertys<T>(int group_code = 0)
         {
             return GetWebablePropertys(typeof(T), group_code);
         }
@@ -192,11 +212,206 @@ namespace AmuTools
         #endregion
 
         #region 转JSON
-        public static string ToJson(object obj, int group_code = 0)
+        public static string ObjToJson(object obj, int group_code = 0)
         {
             JsonSerializerSettings setting = new JsonSerializerSettings();
             setting.Converters.Add(new ModelConvert(group_code));
             return JsonConvert.SerializeObject(obj, Formatting.Indented, setting);
+        }
+        public string ToJson(object obj, int group_code = 0)
+        {
+            return ObjToJson(obj, group_code);
+        }
+        #endregion
+
+        #region 数据库创建函数
+        public void CreateDataBase(List<Type> table_list, Dictionary<string, string> stored_precedures = null)
+        {
+            // 创建数据库
+            if (TestDatabaseExists())
+            {
+                // 创建表
+                foreach (Type t in table_list)
+                {
+                    if (TestTableExists(t)) CheckFields(t);
+                    else CreateTable(t);
+                    AddInitData(t);
+                }
+                // 创建存储过程
+                if (stored_precedures != null) {
+                    foreach(string key in stored_precedures.Keys)
+                    {
+                        if (TestStoredProcedureExists(key)) DeleteStoredProcedure(key);
+                        AddStoredProcedure(stored_precedures[key]);
+                    }
+                }
+                // 创建视图，约束等等，暂时可能先不考虑这些
+            }else
+            {
+                // 不存在数据库，则不需要做任何判断，直接创建即可
+                _CreateDataBase();
+                // 创建表
+                foreach (Type t in table_list)
+                {
+                    CreateTable(t);
+                    AddInitData(t);
+                }
+                // 创建存储过程
+                if (stored_precedures != null)
+                {
+                    foreach (string key in stored_precedures.Keys)
+                    {
+                        AddStoredProcedure(stored_precedures[key]);
+                    }
+                }
+                // 创建视图，约束等等，暂时可能先不考虑这些
+            }
+        }
+        private void _CreateDataBase()
+        {
+            SqlHelper MDB = new SqlHelper(this.ServerName, "master", this.UserName, this.Password);
+            MDB.Set(string.Format("create database {0}", this.DatabaseName));
+        }
+        private void CreateTable(Type model_type)
+        {
+            ModelAttribute ma = GetModelAttribute(model_type);
+            string columns_str = "";
+            PropertyInfo[] pis = GetStorageablePropertys(model_type);
+            for (int i = 0; i < pis.Length; i++)
+            {
+                PropertyInfo pi = pis[i];
+                FieldAttribute fa = pi.GetCustomAttribute<FieldAttribute>();
+                FieldAttribute temp_fa = new FieldAttribute();
+                bool is_primary_key = false;
+
+                if (fa != null && fa.DataType != null) temp_fa.DataType = fa.DataType;
+                else temp_fa.DataType = GetDataType(pi.PropertyType);
+
+                if (ma.PrimaryKey == pi.Name) is_primary_key = true;
+
+                if (is_primary_key) temp_fa.Nullable = false;
+                else if (fa != null) temp_fa.Nullable = fa.Nullable;
+
+                columns_str += string.Format("{0} {1} {2} {3}", pi.Name, temp_fa.DataType, is_primary_key? (ma.IdentityInsert? "identity(1,1)" : "")+" PRIMARY KEY" : "", temp_fa.Nullable? "" : "NOT NULL");
+                if (i != pis.Length - 1) columns_str += ",";
+            }
+            string table_str = string.Format("create table {0} ({1})", ma.TableName, columns_str);
+            Set(table_str);
+        }
+        private void CheckFields(Type model_type)
+        {
+            ModelAttribute ma = GetModelAttribute(model_type);
+            PropertyInfo[] pis = GetStorageablePropertys(model_type);
+
+            foreach (PropertyInfo pi in pis)
+            {
+                FieldAttribute fa = pi.GetCustomAttribute<FieldAttribute>();
+                FieldAttribute temp_fa = new FieldAttribute();
+                bool is_primary_key = false;
+
+                if (fa != null && fa.DataType != null) temp_fa.DataType = fa.DataType;
+                else temp_fa.DataType = GetDataType(pi.PropertyType);
+
+                if (ma.PrimaryKey == pi.Name) is_primary_key = true;
+
+                if (is_primary_key) temp_fa.Nullable = false;
+                else if (fa != null) temp_fa.Nullable = fa.Nullable;
+
+                if (TestFieldExists(ma.TableName, pi.Name)) CheckFieldDataType(ma.TableName, pi.Name, temp_fa.DataType, is_primary_key, ma.IdentityInsert, temp_fa.Nullable);
+                else AddField(ma.TableName, pi.Name, temp_fa.DataType, is_primary_key, ma.IdentityInsert, temp_fa.Nullable);
+            }
+        }
+        private void AddField(string table_name, string field_name, string data_type, bool is_primary_key, bool is_identity_insert, bool null_able)
+        {
+            string field_str = string.Format("alter table {0} add {1} {2} {3} {4}", table_name, field_name, data_type, is_primary_key ? (is_identity_insert ? "identity(1,1)" : "") + " PRIMARY KEY" : "", null_able ? "" : "NOT NULL");
+            Set(field_str);
+        }
+        private string GetDataType(Type type)
+        {
+            if (type == typeof(int)) return "int";
+            else if (type == typeof(string)) return "nvarchar(50)";
+            return "nvarchar(50)";
+        }
+        public bool TestDatabaseExists()
+        {
+            string test_str = string.Format("if exists(select * from sys.databases where name = '{0}') begin select 1 end else begin select 0 end", this.DatabaseName);
+            return (int)Get(test_str).ScalarValue == 1;
+        }
+        private bool TestTableExists(Type type)
+        {
+            string test_str = string.Format("if exists (select * from sysobjects where id = object_id(N'{0}') and OBJECTPROPERTY(id, N'IsUserTable') = 1) begin select 1 end else begin select 0 end", GetTableName(type));
+            return (int)Get(test_str).ScalarValue == 1;
+        }
+        private bool TestFieldExists(string table_name, string field_name)
+        {
+            string test_str = string.Format("if exists(select * from syscolumns where id=object_id('{0}') and name='{1}') begin select 1 end else begin select 0 end", table_name, field_name);
+            return (int)Get(test_str).ScalarValue == 1;
+        }
+        private bool TestStoredProcedureExists(string name)
+        {
+            string test_str = string.Format("if exists(select * from sysobjects where id = object_id(N'{0}') and OBJECTPROPERTY(id, N'IsProcedure') = 1) begin select 1 end else begin select 0 end", name);
+            return (int)Get(test_str).ScalarValue == 1;
+        }
+        private void CheckFieldDataType(string table_name, string field_name, string data_type, bool is_primary_key, bool is_identity_insert, bool null_able)
+        {
+            // 如果字段类型不一致，更改
+            // 如果当前字段为主键，则需要检测其他字段是否为主键，将其改为非主键
+        }
+        private void AddInitData(Type type)
+        {
+            MethodInfo mi = type.GetMethod("GetInitData");
+            if (mi == null) return;
+            object[] result = (object[])mi.Invoke(null, null);
+            foreach(object o in result)
+            {
+                Insert(type, o);
+            }
+        }
+        private void DeleteStoredProcedure(string name)
+        {
+            string test_str = string.Format("drop procedure {0}", name);
+            Set(test_str);
+        }
+        private void AddStoredProcedure(string file_path)
+        {
+            System.Diagnostics.Process sqlProcess = new System.Diagnostics.Process();
+            sqlProcess.StartInfo.FileName = "osql.exe ";
+            sqlProcess.StartInfo.Arguments = string.Format("-S {0} -U {1} -P {2} -d {3} -i {4}", ServerName, UserName, Password, DatabaseName, file_path);
+            sqlProcess.StartInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
+            sqlProcess.Start();
+            sqlProcess.WaitForExit();//程序安装过程中执行
+            sqlProcess.Close();
+        }
+        public Dictionary<string, string> GetSqlFiles(string folder_path, string[] patterns = null)
+        {
+            if (patterns == null) patterns = new string[] { "*.txt", "*.sql"};
+            Dictionary<string, string> result = new Dictionary<string, string>();
+            DirectoryInfo TheFolder = new DirectoryInfo(folder_path);
+
+            foreach (DirectoryInfo NextFolder in TheFolder.GetDirectories())
+            {
+                Dictionary<string, string> temp = GetSqlFiles(NextFolder.FullName, patterns);
+                foreach(string key in temp.Keys)
+                {
+                    result.Add(key, temp[key]);
+                }
+            }
+
+            foreach(string pattern in patterns)
+            {
+                foreach (FileInfo NextFile in TheFolder.GetFiles(pattern))
+                {
+                    //StreamReader sr = new System.IO.StreamReader(NextFile.FullName);
+                    //string line_str;
+                    //string content_str = "";
+                    //while ((line_str = sr.ReadLine()) != null)
+                    //{
+                    //    content_str += line_str + " ";
+                    //}
+                    result.Add(NextFile.Name.Split('.')[0], NextFile.FullName);
+                }
+            }
+            return result;
         }
         #endregion
     }
@@ -234,7 +449,7 @@ namespace AmuTools
         }
     }
 
-    public class ModelConvert : JsonConverter
+    class ModelConvert : JsonConverter
     {
         private int group_code = 0;
         private Type current_type = null;
@@ -265,13 +480,13 @@ namespace AmuTools
             }
 
             // 循环属性，每个属性再序列化，输出
-            PropertyInfo[] pis = SqlHelperEx.GetWebablePropertys(current_type, group_code);
+            PropertyInfo[] pis = SqlHelper.GetWebablePropertys(current_type, group_code);
 
             writer.WriteStartObject();
             foreach(PropertyInfo pi in pis)
             {
                 writer.WritePropertyName(pi.Name);
-                writer.WriteRawValue(SqlHelperEx.ToJson(pi.GetValue(value), group_code));
+                writer.WriteRawValue(SqlHelper.ObjToJson(pi.GetValue(value), group_code));
             }
             writer.WriteEndObject();
         }

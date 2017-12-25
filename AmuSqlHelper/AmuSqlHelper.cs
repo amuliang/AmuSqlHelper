@@ -18,31 +18,47 @@ namespace AmuTools
             3.得到存储过程返回值
             4.得到错误,暂时没写
     */
-    public class SqlHelper
+    public partial class SqlHelper
     {
-        private static string connection_string = "data source=.;initial catalog=databasename;User Id=sa;Password=123456";// ConfigurationManager.ConnectionStrings["Constr"].ToString();
-        private static SqlCommand sql_command = null;
-        public static string ConnectionString { get { return connection_string; } set { connection_string = value;sql_command = null; } }
+        private SqlCommand sql_command = null;
+        public string ConnectionString { get { return string.Format("data source={0};initial catalog={1};User Id={2};Password={3}", ServerName, DatabaseName, UserName, Password); } }
+        public string ServerName { get; set; }
+        public string DatabaseName { get; set; }
+        public string UserName { get; set; }
+        public string Password { get; set; }
+
+        public SqlHelper()
+        {
+
+        }
+        public SqlHelper(string server, string database, string username, string password)
+        {
+            ServerName = server;
+            DatabaseName = database;
+            UserName = username;
+            Password = password;
+        }
+
         // Get
-        public static SqlResult Get(string commond, params SqlParameter[] sqlparams)
+        public SqlResult Get(string commond, params SqlParameter[] sqlparams)
         {
             return Get(commond, CommandType.Text, sqlparams);
         }
-        public static SqlResult Get(string commond, CommandType command_type, params SqlParameter[] sqlparams)
+        public SqlResult Get(string commond, CommandType command_type, params SqlParameter[] sqlparams)
         {
             return Execute(commond, command_type, false, sqlparams);
         }
         // Set
-        public static SqlResult Set(string commond, params SqlParameter[] sqlparams)
+        public SqlResult Set(string commond, params SqlParameter[] sqlparams)
         {
             return Set(commond, CommandType.Text, sqlparams);
         }
-        public static SqlResult Set(string commond, CommandType command_type, params SqlParameter[] sqlparams)
+        public SqlResult Set(string commond, CommandType command_type, params SqlParameter[] sqlparams)
         {
             return Execute(commond, command_type, true, sqlparams);
         }
         //
-        private static SqlResult Execute(string commond, CommandType command_type, bool execute_non_query, params SqlParameter[] sqlparams)
+        private SqlResult Execute(string commond, CommandType command_type, bool execute_non_query, params SqlParameter[] sqlparams)
         {
             if (sql_command == null)
             {
@@ -94,26 +110,26 @@ namespace AmuTools
             }
         }
         //
-        public static List<T> DataTableToList<T>(DataTable dt) where T : class, new()
+        public List<T> DataTableToList<T>(DataTable dt) where T : class, new()
         {
-            return dt == null ? null : ConvertEx.DataTableToList<T>(dt);
+            return ConvertEx.DataTableToList<T>(dt);
         }
 
-        public static SqlParameter CreateSqlParameter(string name, SqlDbType dbtype)
+        public SqlParameter CreateSqlParameter(string name, SqlDbType dbtype)
         {
             SqlParameter param = new SqlParameter();
             param.ParameterName = name;
             param.SqlDbType = dbtype;
             return param;
         }
-        public static SqlParameter CreateSqlParameter(string name, object value)
+        public SqlParameter CreateSqlParameter(string name, object value)
         {
             SqlParameter param = new SqlParameter();
             param.ParameterName = name;
             param.Value = value;
             return param;
         }
-        public static SqlParameter CreateSqlParameter(string name, SqlDbType dbtype, object value)
+        public SqlParameter CreateSqlParameter(string name, SqlDbType dbtype, object value)
         {
             SqlParameter param = new SqlParameter();
             param.ParameterName = name;
@@ -121,7 +137,7 @@ namespace AmuTools
             param.Value = value;
             return param;
         }
-        public static SqlParameter CreateSqlParameter(string name, SqlDbType dbtype, ParameterDirection direct)
+        public SqlParameter CreateSqlParameter(string name, SqlDbType dbtype, ParameterDirection direct)
         {
             SqlParameter param = new SqlParameter();
             param.ParameterName = name;
@@ -129,7 +145,7 @@ namespace AmuTools
             param.Direction = direct;
             return param;
         }
-        public static SqlParameter CreateSqlParameter(string name, SqlDbType dbtype, object value, ParameterDirection direct)
+        public SqlParameter CreateSqlParameter(string name, SqlDbType dbtype, object value, ParameterDirection direct)
         {
             SqlParameter param = new SqlParameter();
             param.ParameterName = name;
@@ -168,7 +184,8 @@ namespace AmuTools
                 this._first_datatable = ds.Tables[0];
                 if (ds.Tables[0].Rows.Count > 0 && ds.Tables[0].Columns.Count > 0)
                 {
-                    this._scalar = ds.Tables[0].Rows[0][0];
+                    object temp = ds.Tables[0].Rows[0][0];
+                    this._scalar = temp == DBNull.Value ? null : temp;
                 }
             }
             this._return = return_value;
@@ -178,12 +195,12 @@ namespace AmuTools
 
         public List<T> GetFirstTableList<T>() where T : class, new()
         {
-            return SqlHelper.DataTableToList<T>(this.FirstTable);
+            return ConvertEx.DataTableToList<T>(this.FirstTable);
         }
 
         public T GetFirstEntity<T>() where T : class, new()
         {
-            return this.FirstTable != null && this.FirstTable.Rows.Count > 0 ? SqlHelper.DataTableToList<T>(this.FirstTable)[0] : null;
+            return this.FirstTable != null && this.FirstTable.Rows.Count > 0 ? ConvertEx.DataTableToList<T>(this.FirstTable)[0] : null;
         }
     }
     #endregion

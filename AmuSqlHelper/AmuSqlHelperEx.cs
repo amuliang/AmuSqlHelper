@@ -48,11 +48,15 @@ namespace AmuTools
             }
             return (int)Get(sql_str).ScalarValue;
         }
-        public object GetMax<T>(string prop_name)
+        private object GetMax(Type type, string prop_name, object default_value = null)
         {
-            string sql_str = string.Format("select max({0}) from {1}", prop_name, GetTableName<T>());
+            string sql_str = string.Format("select max({0}) from {1}", prop_name, GetTableName(type));
             object result = Get(sql_str).ScalarValue;
-            return result == null ? 0 : result;
+            return result == null ? default_value : result;
+        }
+        public object GetMax<T>(string prop_name, object default_value = null)
+        {
+            return GetMax(typeof(T), prop_name, default_value);
         }
         public bool IsOne<T>(string condition)
         {
@@ -86,7 +90,19 @@ namespace AmuTools
             for (int i = 0; i < len; i++)
             {
                 pi = properties[i];
-                if (pi.Name == ma.PrimaryKey && ma.IdentityInsert == true) continue;
+                if (pi.Name == ma.PrimaryKey)
+                {
+                    if (ma.IdentityInsert == true) continue;
+                    else
+                    {
+                        object temp = pi.GetValue(obj);
+                        if (temp == null || temp.ToString() == "" || (int)temp == 0)
+                        {
+                            int new_id = int.Parse(GetMax(type, ma.PrimaryKey, ma.BaseID).ToString()) + 1;
+                            pi.SetValue(obj, Convert.ChangeType(new_id, pi.PropertyType));
+                        }
+                    }
+                } 
                 notLast = i < len - 1;
                 columns += "[" + pi.Name + "]" + (notLast ? "," : "");
                 values += "'" + pi.GetValue(obj) + "'" + (notLast ? "," : "");
@@ -333,6 +349,7 @@ namespace AmuTools
         {
             if (type == typeof(int)) return "int";
             else if (type == typeof(string)) return "nvarchar(50)";
+            else if (type == typeof(double)) return "numeric(18,0)";
             return "nvarchar(50)";
         }
         public bool TestDatabaseExists()
@@ -427,11 +444,13 @@ namespace AmuTools
         public string TableName { get; set; } // 表名
         public string PrimaryKey { get; set; } // 主键
         public bool IdentityInsert { get; set; } // 识别插入，即主键自增
+        public string BaseID { get; set; } // 识别插入，即主键自增
 
         public ModelAttribute()
         {
             PrimaryKey = "id";
             IdentityInsert = true;
+            BaseID = "0";
         }
     }
 

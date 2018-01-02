@@ -397,7 +397,7 @@ namespace AmuTools
         {
             System.Diagnostics.Process sqlProcess = new System.Diagnostics.Process();
             sqlProcess.StartInfo.FileName = "osql.exe ";
-            sqlProcess.StartInfo.Arguments = string.Format("-S {0} -U {1} -P {2} -d {3} -i {4}", ServerName, UserName, Password, DatabaseName, file_path);
+            sqlProcess.StartInfo.Arguments = string.Format("-S {0} -U {1} -P {2} -d {3} -i \"{4}\"", ServerName, UserName, Password, DatabaseName, file_path);
             sqlProcess.StartInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
             sqlProcess.Start();
             sqlProcess.WaitForExit();//程序安装过程中执行

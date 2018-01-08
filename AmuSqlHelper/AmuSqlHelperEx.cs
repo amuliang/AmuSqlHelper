@@ -33,8 +33,13 @@ namespace AmuTools
         {
             string order_by_str = order_by == "" ? "" : string.Format("orderby {0}", order_by);
             string condition_str = condition == "" ? "" : string.Format("where {0}", condition);
-            string sql_str = string.Format("select top {0} * from [{1}] {2} {3}", size, GetTableName<T>(), condition_str, order_by_str);
+            string top_str = size <= 0 ? "" : string.Format("top {0}", size);
+            string sql_str = string.Format("select {0} * from [{1}] {2} {3}", top_str, GetTableName<T>(), condition_str, order_by_str);
             return Get(sql_str);
+        }
+        public SqlResult Get<T>(int size = 1000) where T : class, new()
+        {
+            return Get<T>("", "", size);
         }
         #endregion
 
@@ -157,6 +162,12 @@ namespace AmuTools
         {
             ModelAttribute ma = GetModelAttribute<T>();
             string sql_str = string.Format("delete from [{0}] where [{1}]='{2}'", ma.TableName, ma.PrimaryKey, id);
+            return Set(sql_str).EffectedLineCount;
+        }
+        public int DeleteByCondition<T>(string condition)
+        {
+            ModelAttribute ma = GetModelAttribute<T>();
+            string sql_str = string.Format("delete from [{0}] where {1}", ma.TableName, condition);
             return Set(sql_str).EffectedLineCount;
         }
         #endregion

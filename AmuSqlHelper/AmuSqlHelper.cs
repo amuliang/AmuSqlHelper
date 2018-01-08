@@ -27,6 +27,18 @@ namespace AmuTools
         public string UserName { get; set; }
         public string Password { get; set; }
 
+        //private Dictionary<Type, object> DbSets = new Dictionary<Type, object>();
+
+        //public IEnumerable<T> Query<T>() where T : class, new()
+        //{
+        //    Type type = typeof(T);
+        //    if (!DbSets.ContainsKey(typeof(T)))
+        //    {
+        //        DbSets.Add(type, Get<T>(0).GetFirstTableList<T>());
+        //    }
+        //    return (IEnumerable<T>)DbSets[type];
+        //}
+
         public SqlHelper()
         {
 

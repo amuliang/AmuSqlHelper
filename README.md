@@ -54,8 +54,10 @@ int Insert<T>(T obj)
 int Update<T>(T obj)
 int Delete<T>(string id)
 int Delete<T>(int id)
-SqlResult GetPage<T>(string condition, string order_by, int skip, int take) // 注意，需要一个自带的存储过程sp_amu_getPageData
-SqlResult Get<T>(string condition = "", string order_by = "", int size = 1000)
+int DeleteByCondition<T>(string condition)
+SqlResult<T> GetPage<T>(string condition, string order_by, int skip, int take) // 注意，需要一个自带的存储过程sp_amu_getPageData
+SqlResult<T> Get<T>(string condition = "", string order_by = "", int size = 1000)
+SqlResult<T> Get<T>(int size = 1000)
 int GetCount<T>(string condition)
 object GetMax<T>(string prop_name)
 bool IsOne<T>(string condition)
@@ -67,13 +69,16 @@ bool IsOne<T>(string condition)
     TableName 表名
     PrimaryKey 主键名
     IdentityInsert 识别插入/主键自增
+    BaseID 当IdentityInsert为false时，数据从这里递增
 
 **FieldAttribute**
 
+    FieldName 字段名称
     Webable Web可见
     Strorageable 可数据库存储
     Nullable 可为空
     DataType 数据类型
+    Default 默认值
 
 ``` CSharp
 [Model(TableName = "t_admin", PrimaryKey = "id", IdentityInsert = true)]

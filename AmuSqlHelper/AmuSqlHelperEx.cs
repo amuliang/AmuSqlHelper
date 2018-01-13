@@ -83,7 +83,7 @@ namespace AmuTools
             };
             return HGet<T>("sp_amu_getPageData", CommandType.StoredProcedure, param);
         }
-        public SqlResult<T> Get<T>(string condition = "", string order_by = "", int size = 1000) where T : class, new()
+        public SqlResult<T> Get<T>(string condition, string order_by = "", int size = 1000) where T : class, new()
         {
             string order_by_str = order_by == "" ? "" : string.Format("orderby {0}", order_by);
             string condition_str = condition == "" ? "" : string.Format("where {0}", condition);

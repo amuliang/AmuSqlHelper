@@ -56,7 +56,7 @@ int Delete<T>(string id)
 int Delete<T>(int id)
 int DeleteByCondition<T>(string condition)
 SqlResult<T> GetPage<T>(string condition, string order_by, int skip, int take) // 注意，需要一个自带的存储过程sp_amu_getPageData
-SqlResult<T> Get<T>(string condition = "", string order_by = "", int size = 1000)
+SqlResult<T> Get<T>(string condition, string order_by = "", int size = 1000)
 SqlResult<T> Get<T>(int size = 1000)
 int GetCount<T>(string condition)
 object GetMax<T>(string prop_name)

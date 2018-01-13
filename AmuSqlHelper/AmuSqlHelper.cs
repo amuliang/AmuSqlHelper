@@ -52,13 +52,17 @@ namespace AmuTools
         }
 
         // Get
+        private SqlResult<T> HGet<T>(string commond, CommandType command_type, params SqlParameter[] sqlparams) where T : class, new()
+        {
+            return Execute<T>(commond, command_type, false, sqlparams);
+        }
         public SqlResult Get(string commond, params SqlParameter[] sqlparams)
         {
             return Get(commond, CommandType.Text, sqlparams);
         }
         public SqlResult Get(string commond, CommandType command_type, params SqlParameter[] sqlparams)
         {
-            return Execute(commond, command_type, false, sqlparams);
+            return HGet<object>(commond, command_type, sqlparams);
         }
         // Set
         public SqlResult Set(string commond, params SqlParameter[] sqlparams)
@@ -67,10 +71,10 @@ namespace AmuTools
         }
         public SqlResult Set(string commond, CommandType command_type, params SqlParameter[] sqlparams)
         {
-            return Execute(commond, command_type, true, sqlparams);
+            return Execute<object>(commond, command_type, true, sqlparams);
         }
         //
-        private SqlResult Execute(string commond, CommandType command_type, bool execute_non_query, params SqlParameter[] sqlparams)
+        private SqlResult<T> Execute<T>(string commond, CommandType command_type, bool execute_non_query, params SqlParameter[] sqlparams) where T : class, new()
         {
             if (sql_command == null)
             {
@@ -110,7 +114,7 @@ namespace AmuTools
                     if (param.Direction == ParameterDirection.Output) output_value = param.Value;
                 }
                 cmd.Parameters.Clear();
-                return new SqlResult(null, count, return_value, output_value);
+                return new SqlResult<T>(null, count, return_value, output_value);
             }
             else
             {
@@ -118,13 +122,30 @@ namespace AmuTools
                 DataSet ds = new DataSet();
                 sda.Fill(ds);
                 cmd.Parameters.Clear();
-                return new SqlResult(ds, -1, null, null);
+                return new SqlResult<T>(ds, -1, null, null);
             }
         }
         //
-        public List<T> DataTableToList<T>(DataTable dt) where T : class, new()
+        public static List<T> DataTableToList<T>(DataTable dt) where T : class, new()
         {
-            return ConvertEx.DataTableToList<T>(dt);
+            Dictionary<string, FieldAttribute> fas = GetParsedModel(typeof(T)).StorageableFields;
+            // 构造列表
+            List<T> ts = new List<T>();// 定义集合
+            foreach (DataRow dr in dt.Rows)
+            {
+                T t = new T();
+                foreach (string key in fas.Keys)
+                {
+                    FieldAttribute fa = fas[key];
+                    object value = dr[fa.FieldName];
+                    if (value != DBNull.Value)
+                    {
+                        fa.PropertyInfo.SetValue(t, ConvertEx.ChangeType((IConvertible)value, fa.PropertyInfo.PropertyType), null);
+                    }
+                }
+                ts.Add(t);
+            }
+            return ts;
         }
 
         public SqlParameter CreateSqlParameter(string name, SqlDbType dbtype)
@@ -207,12 +228,30 @@ namespace AmuTools
 
         public List<T> GetFirstTableList<T>() where T : class, new()
         {
-            return ConvertEx.DataTableToList<T>(this.FirstTable);
+            return SqlHelper.DataTableToList<T>(this.FirstTable);
         }
 
         public T GetFirstEntity<T>() where T : class, new()
         {
             return this.FirstTable != null && this.FirstTable.Rows.Count > 0 ? ConvertEx.DataTableToList<T>(this.FirstTable)[0] : null;
+        }
+    }
+
+    public class SqlResult<T> : SqlResult where T : class, new()
+    {
+        public SqlResult(DataSet ds, int effectedLineCount, object return_value, object output_value) :base(ds, effectedLineCount, return_value, output_value)
+        {
+
+        }
+
+        public List<T> GetFirstTableList()
+        {
+            return GetFirstTableList<T>();
+        }
+
+        public T GetFirstEntity()
+        {
+            return GetFirstEntity<T>();
         }
     }
     #endregion

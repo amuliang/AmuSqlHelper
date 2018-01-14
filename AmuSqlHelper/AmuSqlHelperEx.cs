@@ -174,7 +174,7 @@ namespace AmuTools
                 values += "'" + temp_value + "'" + (notLast ? "," : "");
             }
             string sql_str = string.Format("insert into [{0}] ({1}) values ({2});select @@IDENTITY", pm.Model.TableName, columns, values);
-            SqlResult sr = Get(sql_str);
+            SqlResult sr = Set(sql_str);
             if (pm.Model.IdentityInsert)
             {
                 if ((pi = type.GetProperty(pm.Model.PrimaryKey)) != null)

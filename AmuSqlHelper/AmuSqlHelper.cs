@@ -101,28 +101,36 @@ namespace AmuTools
                 cmd.Parameters.Add(param);
             }
             // 开始获取
-            if (execute_non_query)
+            try
             {
-                cmd.Connection.Open();
-                int count = cmd.ExecuteNonQuery();
-                cmd.Connection.Close();
-                object return_value = null;
-                object output_value = null;
-                foreach (SqlParameter param in cmd.Parameters)
+                if (execute_non_query)
                 {
-                    if (param.Direction == ParameterDirection.ReturnValue) return_value = param.Value;
-                    if (param.Direction == ParameterDirection.Output) output_value = param.Value;
+                    cmd.Connection.Open();
+                    int count = cmd.ExecuteNonQuery();
+                    cmd.Connection.Close();
+                    object return_value = null;
+                    object output_value = null;
+                    foreach (SqlParameter param in cmd.Parameters)
+                    {
+                        if (param.Direction == ParameterDirection.ReturnValue) return_value = param.Value;
+                        if (param.Direction == ParameterDirection.Output) output_value = param.Value;
+                    }
+                    cmd.Parameters.Clear();
+                    return new SqlResult<T>(null, count, return_value, output_value);
                 }
-                cmd.Parameters.Clear();
-                return new SqlResult<T>(null, count, return_value, output_value);
+                else
+                {
+                    SqlDataAdapter sda = new SqlDataAdapter(cmd);
+                    DataSet ds = new DataSet();
+                    sda.Fill(ds);
+                    cmd.Parameters.Clear();
+                    return new SqlResult<T>(ds, -1, null, null);
+                }
             }
-            else
+            catch (Exception err)
             {
-                SqlDataAdapter sda = new SqlDataAdapter(cmd);
-                DataSet ds = new DataSet();
-                sda.Fill(ds);
-                cmd.Parameters.Clear();
-                return new SqlResult<T>(ds, -1, null, null);
+                if (sql_command.Connection.State != ConnectionState.Closed) sql_command.Connection.Close();
+                throw new Exception("数据库操作错误：" + err.Message);
             }
         }
         //

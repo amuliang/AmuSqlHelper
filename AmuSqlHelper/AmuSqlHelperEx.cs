@@ -257,21 +257,6 @@ namespace AmuTools
         {
             return GetParsedModel(typeof(T)).Model.IdentityInsert;
         }
-        public PropertyInfo[] GetStorageablePropertys<T>()
-        {
-            return GetStorageablePropertys(typeof(T));
-        }
-        private static PropertyInfo[] GetStorageablePropertys(Type type)
-        {
-            PropertyInfo[] properties = type.GetProperties(); // 获得此模型的公共属性
-            List<PropertyInfo> result = new List<PropertyInfo>();
-            foreach (PropertyInfo pi in properties)
-            {
-                FieldAttribute fa = pi.GetCustomAttribute<FieldAttribute>();
-                if (fa == null || fa.Storageable) result.Add(pi);
-            }
-            return result.ToArray();
-        }
         public PropertyInfo[] GetWebablePropertys<T>(int group_code = 0)
         {
             return GetWebablePropertys(typeof(T), group_code);
@@ -303,15 +288,23 @@ namespace AmuTools
         #endregion
 
         #region 数据库创建函数
-        public void CreateDataBase(List<Type> table_list, Dictionary<string, string> stored_precedures = null)
+        private List<string> DataBaseUpdateLogs = null;
+        public List<string> CreateDataBase(List<Type> table_list, Dictionary<string, string> stored_precedures = null)
         {
+            DataBaseUpdateLogs = new List<string>();
+            DateTime start_time = DateTime.Now;
+            DataBaseUpdateLogs.Add(string.Format("开始更新数据库，开始时间{0}", start_time));
             // 创建数据库
             if (TestDatabaseExists())
             {
+                DataBaseUpdateLogs.Add(string.Format("数据库{0}已存在，正在对比表", this.DatabaseName));
                 // 创建表
                 foreach (Type t in table_list)
                 {
-                    if (TestTableExists(t)) CheckFields(t);
+                    if (TestTableExists(t))
+                    {
+                        CheckFields(t);
+                    }
                     else
                     {
                         CreateTable(t);
@@ -347,11 +340,17 @@ namespace AmuTools
                 }
                 // 创建视图，约束等等，暂时可能先不考虑这些
             }
+            DateTime end_time = DateTime.Now;
+            DataBaseUpdateLogs.Add(string.Format("数据库更新完成，完成时间{0}，共耗时{1}", end_time, end_time - start_time));
+            List<string> temp = DataBaseUpdateLogs;
+            DataBaseUpdateLogs = null;
+            return temp;
         }
         private void _CreateDataBase()
         {
             SqlHelper MDB = new SqlHelper(this.ServerName, "master", this.UserName, this.Password);
             MDB.Set(string.Format("create database {0}", this.DatabaseName));
+            DataBaseUpdateLogs.Add("创建数据库" + this.DatabaseName);
         }
         private void CreateTable(Type model_type)
         {
@@ -370,12 +369,14 @@ namespace AmuTools
             }
             string table_str = string.Format("create table {0} ({1})", ma.TableName, columns_str);
             Set(table_str);
+            DataBaseUpdateLogs.Add("创建表" + ma.TableName);
         }
         private void CheckFields(Type model_type)
         {
             ParsedModel pm = GetParsedModel(model_type);
             ModelAttribute ma = GetParsedModel(model_type).Model;
             Dictionary<string, FieldAttribute> fas = pm.StorageableFields;
+            DataBaseUpdateLogs.Add(string.Format("表{0}已存在，正在对比字段", ma.TableName));
 
             foreach (string key in fas.Keys)
             {
@@ -388,6 +389,7 @@ namespace AmuTools
         {
             string field_str = string.Format("alter table {0} add {1} {2} {3} {4}", table_name, field_name, data_type, is_primary_key ? (is_identity_insert ? "identity(1,1)" : "") + " PRIMARY KEY" : "", null_able ? "" : "NOT NULL");
             Set(field_str);
+            DataBaseUpdateLogs.Add(string.Format("为表{0}添加字段{1}", table_name, field_name));
         }
         private static string GetDataType(Type type)
         {
@@ -421,21 +423,25 @@ namespace AmuTools
         {
             // 如果字段类型不一致，更改
             // 如果当前字段为主键，则需要检测其他字段是否为主键，将其改为非主键
+            //DataBaseUpdateLogs.Add(string.Format("表{0}字段{1}已存在，未做处理", table_name, field_name));
         }
         private void AddInitData(Type type)
         {
             MethodInfo mi = type.GetMethod("GetInitData");
             if (mi == null) return;
             object[] result = (object[])mi.Invoke(null, null);
-            foreach(object o in result)
+            DataBaseUpdateLogs.Add(string.Format("正在为表{0}插入{1}条数据", GetParsedModel(type).Model.TableName, result.Length));
+            foreach (object o in result)
             {
                 Insert(type, o);
             }
+            DataBaseUpdateLogs.Add(string.Format("为表{0}成功插入{1}条数据", GetParsedModel(type).Model.TableName, result.Length));
         }
         private void DeleteStoredProcedure(string name)
         {
             string test_str = string.Format("drop procedure {0}", name);
             Set(test_str);
+            DataBaseUpdateLogs.Add(string.Format("存储过程{0}已删除", name));
         }
         private void AddStoredProcedure(string file_path)
         {
@@ -446,6 +452,7 @@ namespace AmuTools
             sqlProcess.Start();
             sqlProcess.WaitForExit();//程序安装过程中执行
             sqlProcess.Close();
+            DataBaseUpdateLogs.Add(string.Format("执行文件{0}，创建存储过程", file_path));
         }
         public Dictionary<string, string> GetSqlFiles(string folder_path, string[] patterns = null)
         {
@@ -481,7 +488,7 @@ namespace AmuTools
         #endregion
     }
 
-    #region Attribute类,JsonConverter类
+    #region Attribute类,JsonConverter类, 其他辅助类
     [AttributeUsage(AttributeTargets.Class)]
     public class ModelAttribute : Attribute
     {
@@ -607,5 +614,10 @@ namespace AmuTools
             writer.WriteEndObject();
         }
     }
+
+    //class DataBaseUpdateLog
+    //{
+
+    //}
     #endregion
 }

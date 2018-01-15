@@ -241,7 +241,7 @@ namespace AmuTools
 
         public T GetFirstEntity<T>() where T : class, new()
         {
-            return this.FirstTable != null && this.FirstTable.Rows.Count > 0 ? ConvertEx.DataTableToList<T>(this.FirstTable)[0] : null;
+            return this.FirstTable != null && this.FirstTable.Rows.Count > 0 ? SqlHelper.DataTableToList<T>(this.FirstTable)[0] : null;
         }
     }
 

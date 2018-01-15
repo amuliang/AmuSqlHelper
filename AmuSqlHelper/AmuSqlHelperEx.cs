@@ -615,9 +615,94 @@ namespace AmuTools
         }
     }
 
-    //class DataBaseUpdateLog
-    //{
+    // 数据库condition拼接类
+    public class Cd
+    {
+        private List<string> list = new List<string>();
 
-    //}
+        public Cd(string condition = null, params object[] values)
+        {
+            if (condition != null) this.And(condition, values);
+        }
+        public Cd And(string condition, params object[] values)
+        {
+            if (condition == null || condition.Trim() == "") return this;
+            condition = string.Format(condition, values);
+            if (list.Count == 0)
+            {
+                list.Add(condition);
+            }
+            else
+            {
+                list.Add(string.Format(" and {0}", condition));
+            }
+            return this;
+        }
+        public Cd And(Cd dbop)
+        {
+            return And(dbop.Render());
+        }
+        public Cd Or(string condition, params object[] values)
+        {
+            if (condition == null || condition.Trim() == "") return this;
+            condition = string.Format(condition, values);
+            if (list.Count == 0)
+            {
+                list.Add(condition);
+            }
+            else
+            {
+                list.Add(string.Format(" or {0}", condition));
+            }
+            return this;
+        }
+        public Cd Or(Cd dbop)
+        {
+            return Or(dbop.Render());
+        }
+        public string Render()
+        {
+            return string.Format("({0})", string.Join("", list));
+        }
+    }
+    // 数据库orderby拼接类
+    public class Ob
+    {
+        private List<string> list = new List<string>();
+        public Ob(string field_name = null)
+        {
+            if (field_name != null) this.Desc(field_name);
+        }
+        public Ob Asc(string field_name)
+        {
+            if (field_name == null || field_name.Trim() == "") return this;
+            if (list.Count == 0)
+            {
+                list.Add(field_name);
+            }
+            else
+            {
+                list.Add(string.Format("{0} asc", field_name));
+            }
+            return this;
+        }
+        public Ob Desc(string field_name)
+        {
+            if (field_name == null || field_name.Trim() == "") return this;
+            if (list.Count == 0)
+            {
+                list.Add(field_name);
+            }
+            else
+            {
+                list.Add(string.Format("{0} desc", field_name));
+            }
+            return this;
+        }
+        public string Render()
+        {
+            return string.Format("({0})", string.Join(",", list));
+        }
+    }
     #endregion
 }

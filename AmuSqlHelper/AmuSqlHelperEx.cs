@@ -662,7 +662,7 @@ namespace AmuTools
         }
         public string Render()
         {
-            return string.Format("({0})", string.Join("", list));
+            return list.Count == 0 ? "(1=1)" : string.Format("({0})", string.Join("", list));
         }
     }
     // 数据库orderby拼接类
@@ -701,7 +701,7 @@ namespace AmuTools
         }
         public string Render()
         {
-            return string.Format("({0})", string.Join(",", list));
+            return string.Format("{0}", string.Join(",", list));
         }
     }
     #endregion

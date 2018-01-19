@@ -676,27 +676,17 @@ namespace AmuTools
         public Ob Asc(string field_name)
         {
             if (field_name == null || field_name.Trim() == "") return this;
-            if (list.Count == 0)
-            {
-                list.Add(field_name);
-            }
-            else
-            {
-                list.Add(string.Format("{0} asc", field_name));
-            }
+
+            list.Add(string.Format("{0} asc", field_name));
+
             return this;
         }
         public Ob Desc(string field_name)
         {
             if (field_name == null || field_name.Trim() == "") return this;
-            if (list.Count == 0)
-            {
-                list.Add(field_name);
-            }
-            else
-            {
-                list.Add(string.Format("{0} desc", field_name));
-            }
+
+            list.Add(string.Format("{0} desc", field_name));
+
             return this;
         }
         public string Render()

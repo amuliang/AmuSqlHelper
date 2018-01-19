@@ -275,15 +275,25 @@ namespace AmuTools
         #endregion
 
         #region 转JSON
-        public static string ObjToJson(object obj, int group_code = 0)
+        public static string ObjToJson(object obj, int group_code = 0, bool show_private = true)
         {
             JsonSerializerSettings setting = new JsonSerializerSettings();
-            setting.Converters.Add(new ModelConvert(group_code));
+            setting.Converters.Add(new ModelConvert(group_code, show_private));
             return JsonConvert.SerializeObject(obj, Formatting.Indented, setting);
         }
-        public string ToJson(object obj, int group_code = 0)
+        public static string ObjToJson(object obj, string columns, bool show_private = true)
         {
-            return ObjToJson(obj, group_code);
+            JsonSerializerSettings setting = new JsonSerializerSettings();
+            setting.Converters.Add(new ModelConvert(columns, show_private));
+            return JsonConvert.SerializeObject(obj, Formatting.Indented, setting);
+        }
+        public string ToJson(object obj, int group_code = 0, bool show_private = true)
+        {
+            return ObjToJson(obj, group_code, show_private);
+        }
+        public string ToJson(object obj, string columns, bool show_private = true)
+        {
+            return ObjToJson(obj, columns, show_private);
         }
         #endregion
 
@@ -514,6 +524,7 @@ namespace AmuTools
         public bool Nullable { get; set; } // 是否允许为null
         public string DataType { get; set; } // 数据类型
         public object Default { get; set; } // 默认值
+        public bool IsPrivate { get; set; } // 是否私有，作为其它类的属性看不到的字段
         private PropertyInfo pi { get; set; }
         public PropertyInfo PropertyInfo
         {
@@ -545,8 +556,9 @@ namespace AmuTools
             Storageable = true;
             Webable = true;
             Nullable = true;
+            IsPrivate = false;
             DataType = null;
-            Groups = new int[] { };
+            Groups = new int[] { 0 };
             is_pk = false;
             ii = false;
         }
@@ -575,11 +587,20 @@ namespace AmuTools
     class ModelConvert : JsonConverter
     {
         private int group_code = 0;
+        private string columns = "";
         private Type current_type = null;
+        private bool show_private = true;
 
-        public ModelConvert(int the_group_code = 0)
+        public ModelConvert(int the_group_code = 0, bool the_show_private = true)
         {
             group_code = the_group_code;
+            show_private = the_show_private;
+        }
+
+        public ModelConvert(string the_columns, bool the_show_private = true)
+        {
+            columns = the_columns;
+            show_private = the_show_private;
         }
 
         public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
@@ -603,13 +624,24 @@ namespace AmuTools
             }
 
             // 循环属性，每个属性再序列化，输出
-            PropertyInfo[] pis = SqlHelper.GetWebablePropertys(current_type, group_code);
+            Dictionary<string, FieldAttribute> was = SqlHelper.GetParsedModel(current_type).WebableFields;
+            string[] the_columns = columns.Split(',');
 
             writer.WriteStartObject();
-            foreach(PropertyInfo pi in pis)
+            foreach(string key in was.Keys)
             {
+                FieldAttribute wa = was[key];
+                if (!show_private && wa.IsPrivate) continue; // 当不显示私有字段，并且当前字段正好为私有的，则跳过（此私有非类的公有私有）
+                if(group_code == 0 && columns != "")
+                {
+                    if (!the_columns.Contains<string>(key)) continue;
+                }else
+                {
+                    if (!wa.Groups.Contains<int>(group_code)) continue;
+                }
+                PropertyInfo pi = wa.PropertyInfo;
                 writer.WritePropertyName(pi.Name);
-                writer.WriteRawValue(SqlHelper.ObjToJson(pi.GetValue(value), group_code));
+                writer.WriteRawValue(SqlHelper.ObjToJson(pi.GetValue(value), 0, false));
             }
             writer.WriteEndObject();
         }

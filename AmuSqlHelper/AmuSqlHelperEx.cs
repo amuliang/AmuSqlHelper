@@ -85,7 +85,7 @@ namespace AmuTools
         }
         public SqlResult<T> Get<T>(string condition, string order_by = "", int size = 1000) where T : class, new()
         {
-            string order_by_str = order_by == "" ? "" : string.Format("orderby {0}", order_by);
+            string order_by_str = order_by == "" ? "" : string.Format("order by {0}", order_by);
             string condition_str = condition == "" ? "" : string.Format("where {0}", condition);
             string top_str = size <= 0 ? "" : string.Format("top {0}", size);
             string sql_str = string.Format("select {0} * from [{1}] {2} {3}", top_str, GetTableName<T>(), condition_str, order_by_str);

@@ -700,7 +700,7 @@ namespace AmuTools
     // 数据库orderby拼接类
     public class Ob
     {
-        private List<string> list = new List<string>();
+        private Dictionary<string, string> list = new Dictionary<string, string>();
         public Ob(string field_name = null)
         {
             if (field_name != null) this.Desc(field_name);
@@ -709,7 +709,7 @@ namespace AmuTools
         {
             if (field_name == null || field_name.Trim() == "") return this;
 
-            list.Add(string.Format("{0} asc", field_name));
+            list[field_name] = "asc";
 
             return this;
         }
@@ -717,13 +717,25 @@ namespace AmuTools
         {
             if (field_name == null || field_name.Trim() == "") return this;
 
-            list.Add(string.Format("{0} desc", field_name));
+            list[field_name] = "desc";
 
             return this;
         }
+        //public Ob Add(string field_name)
+        //{
+        //    if (field_name == null || field_name.Trim() == "") return this;
+
+        //    list[field_name] = "";
+
+        //    return this;
+        //}
+        //public Ob Add(Ob ob)
+        //{
+        //    return Add(ob.Render());
+        //}
         public string Render()
         {
-            return string.Format("{0}", string.Join(",", list));
+            return string.Join(",", list.Select(r => r.Key + " " + r.Value));
         }
     }
     #endregion

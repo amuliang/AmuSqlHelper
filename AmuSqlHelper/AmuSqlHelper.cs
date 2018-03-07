@@ -103,6 +103,7 @@ namespace AmuTools
             // 开始获取
             try
             {
+                while (cmd.Connection.State != ConnectionState.Closed) {} // 等待其他线程请求完毕再继续执行，否则一直阻塞
                 if (execute_non_query)
                 {
                     cmd.Connection.Open();

@@ -203,6 +203,7 @@ namespace AmuTools
         private DataSet _set = null;
         private DataTable _first_datatable = null;
         private object _scalar = null;
+        private Dictionary<string, object> _dictionary = null;
         private object _return = null;
         private object _output = null;
         private int _effected_line_count = -1;
@@ -211,6 +212,7 @@ namespace AmuTools
         public DataSet DataSet { get { return _set; } } // 数据集
         public DataTable FirstTable { get { return _first_datatable; } } // 第一个数据表
         public object ScalarValue { get { return _scalar; } } // 第一个值
+        public object Dictionary { get { return _dictionary; } } // 第一行数据转为字典形式
 
         // Set方法设置的值
         public object ReturnValue { get { return _return; } } // 存储过程的返回值
@@ -224,10 +226,16 @@ namespace AmuTools
             if (ds != null && ds.Tables.Count > 0)
             {
                 this._first_datatable = ds.Tables[0];
+                this._dictionary = new Dictionary<string, object>();
                 if (ds.Tables[0].Rows.Count > 0 && ds.Tables[0].Columns.Count > 0)
                 {
                     object temp = ds.Tables[0].Rows[0][0];
                     this._scalar = temp == DBNull.Value ? null : temp;
+                    foreach(string key in ds.Tables[0].Columns)
+                    {
+                        temp = ds.Tables[0].Rows[0][key];
+                        _dictionary.Add(key, temp == DBNull.Value ? null : temp);
+                    }
                 }
             }
             this._return = return_value;

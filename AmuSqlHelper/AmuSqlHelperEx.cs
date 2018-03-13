@@ -701,6 +701,12 @@ namespace AmuTools
     public class Ob
     {
         private Dictionary<string, string> list = new Dictionary<string, string>();
+        public int Count {
+            get
+            {
+                return list.Count;
+            }
+        }
         public Ob(string field_name = null)
         {
             if (field_name != null) this.Desc(field_name);

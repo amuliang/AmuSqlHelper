@@ -212,7 +212,7 @@ namespace AmuTools
         public DataSet DataSet { get { return _set; } } // 数据集
         public DataTable FirstTable { get { return _first_datatable; } } // 第一个数据表
         public object ScalarValue { get { return _scalar; } } // 第一个值
-        public object Dictionary { get { return _dictionary; } } // 第一行数据转为字典形式
+        public Dictionary<string, object> Dictionary { get { return _dictionary; } } // 第一行数据转为字典形式
 
         // Set方法设置的值
         public object ReturnValue { get { return _return; } } // 存储过程的返回值

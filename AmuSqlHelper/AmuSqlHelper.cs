@@ -231,10 +231,10 @@ namespace AmuTools
                 {
                     object temp = ds.Tables[0].Rows[0][0];
                     this._scalar = temp == DBNull.Value ? null : temp;
-                    foreach(string key in ds.Tables[0].Columns)
+                    foreach(DataColumn column in ds.Tables[0].Columns)
                     {
-                        temp = ds.Tables[0].Rows[0][key];
-                        _dictionary.Add(key, temp == DBNull.Value ? null : temp);
+                        temp = ds.Tables[0].Rows[0][column.ColumnName];
+                        _dictionary.Add(column.ColumnName, temp == DBNull.Value ? null : temp);
                     }
                 }
             }

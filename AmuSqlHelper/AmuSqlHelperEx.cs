@@ -71,6 +71,18 @@ namespace AmuTools
         }
 
         #region 条件list数据
+        public SqlResult GetPage(string table, string condition, string order_by, int skip, int take)
+        {
+            SqlParameter[] param = new SqlParameter[]
+            {
+                CreateSqlParameter("@table_name", SqlDbType.NVarChar, table),
+                CreateSqlParameter("@condition", SqlDbType.NVarChar, condition),
+                CreateSqlParameter("@order_by", SqlDbType.NVarChar, order_by),
+                CreateSqlParameter("@skip", SqlDbType.Int, skip),
+                CreateSqlParameter("@take", SqlDbType.Int, take)
+            };
+            return Get("sp_amu_getPageData", CommandType.StoredProcedure, param);
+        }
         public SqlResult<T> GetPage<T>(string condition, string order_by, int skip, int take) where T : class, new()
         {
             SqlParameter[] param = new SqlParameter[]
@@ -98,9 +110,18 @@ namespace AmuTools
         #endregion
 
         #region 特殊函数
-        public int GetCount<T>(string condition)
+        public int GetCount<T>(string condition = "")
         {
             string sql_str = string.Format("select count(*) from {0}", GetTableName<T>());
+            if (condition != null && condition != "")
+            {
+                sql_str += " where " + condition;
+            }
+            return (int)Get(sql_str).ScalarValue;
+        }
+        public int GetCount(string table, string condition = "")
+        {
+            string sql_str = string.Format("select count(*) from {0}", table);
             if (condition != null && condition != "")
             {
                 sql_str += " where " + condition;

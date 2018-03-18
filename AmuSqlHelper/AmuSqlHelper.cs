@@ -131,7 +131,7 @@ namespace AmuTools
             catch (Exception err)
             {
                 if (sql_command.Connection.State != ConnectionState.Closed) sql_command.Connection.Close();
-                throw new Exception("数据库操作错误：" + err.Message);
+                throw new Exception("数据库操作错误：" + err.Message + "。SQL语句：" + commond);
             }
         }
         //

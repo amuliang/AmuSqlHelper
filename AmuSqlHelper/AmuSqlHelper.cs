@@ -20,7 +20,6 @@ namespace AmuTools
     */
     public partial class SqlHelper
     {
-        private SqlCommand sql_command = null;
         public string ConnectionString { get { return string.Format("data source={0};initial catalog={1};User Id={2};Password={3}", ServerName, DatabaseName, UserName, Password); } }
         public string ServerName { get; set; }
         public string DatabaseName { get; set; }
@@ -76,12 +75,8 @@ namespace AmuTools
         //
         private SqlResult<T> Execute<T>(string commond, CommandType command_type, bool execute_non_query, params SqlParameter[] sqlparams) where T : class, new()
         {
-            if (sql_command == null)
-            {
-                sql_command = new SqlCommand();
-                sql_command.Connection = new SqlConnection(ConnectionString);
-            }
-            SqlCommand cmd = sql_command;
+            SqlCommand cmd = new SqlCommand();
+            cmd.Connection = new SqlConnection(ConnectionString);
             cmd.CommandText = commond;
             cmd.CommandType = command_type;
             // 添加参数，如果没有return值，则需要手动添加之
@@ -103,7 +98,7 @@ namespace AmuTools
             // 开始获取
             try
             {
-                while (cmd.Connection.State != ConnectionState.Closed) {} // 等待其他线程请求完毕再继续执行，否则一直阻塞
+                //while (cmd.Connection.State != ConnectionState.Closed) {} // 等待其他线程请求完毕再继续执行，否则一直阻塞
                 if (execute_non_query)
                 {
                     cmd.Connection.Open();
@@ -130,7 +125,7 @@ namespace AmuTools
             }
             catch (Exception err)
             {
-                if (sql_command.Connection.State != ConnectionState.Closed) sql_command.Connection.Close();
+                if (cmd.Connection.State != ConnectionState.Closed) cmd.Connection.Close();
                 throw new Exception("数据库操作错误：" + err.Message + "。SQL语句：" + commond);
             }
         }

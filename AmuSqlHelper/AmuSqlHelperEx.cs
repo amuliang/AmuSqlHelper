@@ -346,8 +346,7 @@ namespace AmuTools
                 if (stored_precedures != null) {
                     foreach(string key in stored_precedures.Keys)
                     {
-                        if (TestStoredProcedureExists(key)) DeleteStoredProcedure(key);
-                        AddStoredProcedure(stored_precedures[key]);
+                        if (!TestStoredProcedureExists(key)) AddStoredProcedure(stored_precedures[key]);
                     }
                 }
                 // 创建视图，约束等等，暂时可能先不考虑这些

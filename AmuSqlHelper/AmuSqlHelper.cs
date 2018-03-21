@@ -20,6 +20,9 @@ namespace AmuTools
     */
     public partial class SqlHelper
     {
+        private bool stack_opened = false;
+        private List<SqlUnit> stack = new List<SqlUnit>();
+
         public string ConnectionString { get { return string.Format("data source={0};initial catalog={1};User Id={2};Password={3}", ServerName, DatabaseName, UserName, Password); } }
         public string ServerName { get; set; }
         public string DatabaseName { get; set; }
@@ -51,33 +54,38 @@ namespace AmuTools
         }
 
         // Get
-        private SqlResult<T> HGet<T>(string commond, CommandType command_type, params SqlParameter[] sqlparams) where T : class, new()
+        private SqlResult<T> HGet<T>(string command, CommandType command_type, params SqlParameter[] sqlparams) where T : class, new()
         {
-            return Execute<T>(commond, command_type, false, sqlparams);
+            return Execute<T>(command, command_type, false, sqlparams);
         }
-        public SqlResult Get(string commond, params SqlParameter[] sqlparams)
+        public SqlResult Get(string command, params SqlParameter[] sqlparams)
         {
-            return Get(commond, CommandType.Text, sqlparams);
+            return Get(command, CommandType.Text, sqlparams);
         }
-        public SqlResult Get(string commond, CommandType command_type, params SqlParameter[] sqlparams)
+        public SqlResult Get(string command, CommandType command_type, params SqlParameter[] sqlparams)
         {
-            return HGet<object>(commond, command_type, sqlparams);
+            return HGet<object>(command, command_type, sqlparams);
         }
         // Set
-        public SqlResult Set(string commond, params SqlParameter[] sqlparams)
+        public SqlResult Set(string command, params SqlParameter[] sqlparams)
         {
-            return Set(commond, CommandType.Text, sqlparams);
+            return Set(command, CommandType.Text, sqlparams);
         }
-        public SqlResult Set(string commond, CommandType command_type, params SqlParameter[] sqlparams)
+        public SqlResult Set(string command, CommandType command_type, params SqlParameter[] sqlparams)
         {
-            return Execute<object>(commond, command_type, true, sqlparams);
+            return Execute<object>(command, command_type, true, sqlparams);
         }
         //
-        private SqlResult<T> Execute<T>(string commond, CommandType command_type, bool execute_non_query, params SqlParameter[] sqlparams) where T : class, new()
+        private SqlResult<T> Execute<T>(string command, CommandType command_type, bool execute_non_query, params SqlParameter[] sqlparams) where T : class, new()
         {
+            if (stack_opened) { // 如果栈开启，则不执行，将sql执行信息放入栈中
+                stack.Add(new SqlUnit { command = command, command_type = command_type, execute_non_query = execute_non_query, sqlparams = sqlparams });
+                return null;
+            }
+
             SqlCommand cmd = new SqlCommand();
             cmd.Connection = new SqlConnection(ConnectionString);
-            cmd.CommandText = commond;
+            cmd.CommandText = command;
             cmd.CommandType = command_type;
             // 添加参数，如果没有return值，则需要手动添加之
             string return_value_name = "";
@@ -126,7 +134,7 @@ namespace AmuTools
             catch (Exception err)
             {
                 if (cmd.Connection.State != ConnectionState.Closed) cmd.Connection.Close();
-                throw new Exception("数据库操作错误：" + err.Message + "。SQL语句：" + commond);
+                throw new Exception("数据库操作错误：" + err.Message + "。SQL语句：" + command);
             }
         }
         //
@@ -150,6 +158,30 @@ namespace AmuTools
                 ts.Add(t);
             }
             return ts;
+        }
+
+        public void OpenStack()
+        {
+            stack_opened = true;
+        }
+
+        public void CloseStack()
+        {
+            stack_opened = false;
+        }
+
+        public void RunStack()
+        {
+            CloseStack();
+            string all_command = "";
+            if (stack.Count == 0) return;
+            for(int i = 0; i < stack.Count; i++)
+            {
+                SqlUnit su = stack[i];
+                all_command += su.command + ";";
+                //this.Execute<Object>(su.command, su.command_type, su.execute_non_query, su.sqlparams);
+            }
+            this.Set(all_command);
         }
 
         public SqlParameter CreateSqlParameter(string name, SqlDbType dbtype)
@@ -267,6 +299,14 @@ namespace AmuTools
         }
     }
     #endregion
+
+    class SqlUnit
+    {
+        public string command { get; set; }
+        public CommandType command_type { get; set; }
+        public bool execute_non_query { get; set; }
+        public SqlParameter[] sqlparams { get; set; }
+    }
 
     static class ConvertEx
     {

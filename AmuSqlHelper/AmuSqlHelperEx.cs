@@ -132,7 +132,18 @@ namespace AmuTools
         {
             string sql_str = string.Format("select max({0}) from {1}", prop_name, GetTableName(type));
             object result = Get(sql_str).ScalarValue;
-            return result == null ? default_value : result;
+            if(result == null)
+            {
+                return default_value;
+            }
+            else
+            {
+                if (int.Parse(result.ToString()) < int.Parse(default_value.ToString()))
+                {
+                    return default_value;
+                }
+                else return result;
+            }
         }
         public object GetMax<T>(string prop_name, object default_value = null)
         {

@@ -693,11 +693,11 @@ namespace AmuTools
             condition = string.Format(condition, values);
             if (list.Count == 0)
             {
-                list.Add(condition);
+                list.Add(string.Format("({0})", condition));
             }
             else
             {
-                list.Add(string.Format(" and {0}", condition));
+                list.Add(string.Format(" and ({0})", condition));
             }
             return this;
         }
@@ -715,7 +715,7 @@ namespace AmuTools
             }
             else
             {
-                list.Add(string.Format(" or {0}", condition));
+                list.Add(string.Format(" or ({0})", condition));
             }
             return this;
         }

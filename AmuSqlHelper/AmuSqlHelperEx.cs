@@ -463,8 +463,28 @@ namespace AmuTools
         private void CheckFieldDataType(string table_name, string field_name, string data_type, bool is_primary_key, bool is_identity_insert, bool null_able)
         {
             // 如果字段类型不一致，更改
+            string test_str = string.Format("select c.name, b.length from sysobjects a, syscolumns b ,systypes c where a.id = b.id and a.xtype='U' and b.xtype=c.xtype and a.name='{0}' and b.name='{1}'",
+                table_name, field_name);
+            SqlResult sr = Get(test_str);
+            //string old_type = sr.FirstTable.Rows[0]["name"].ToString();
+            //string old_length = sr.FirstTable.Rows[0]["length"].ToString();
+            //if (old_type != data_type && string.Format("{0}({1})", old_type, old_length) != data_type)
+            //{
+            //    DataBaseUpdateLogs.Add(string.Format("表{0}字段{1}类型冲突：{2}({3}) => {4}", table_name, field_name, old_type, old_length, data_type));
+            //}
+            string old_type = sr.FirstTable.Rows[0]["name"].ToString();
+            string now_type = data_type.Split('(')[0];
+            if (old_type != now_type)
+            {
+                DataBaseUpdateLogs.Add(string.Format("表{0}字段{1}类型冲突：{2} => {3}", table_name, field_name, old_type, now_type));
+            }
             // 如果当前字段为主键，则需要检测其他字段是否为主键，将其改为非主键
             //DataBaseUpdateLogs.Add(string.Format("表{0}字段{1}已存在，未做处理", table_name, field_name));
+
+            //select a.name 表名, b.name 字段名, c.name 字段类型, b.length 字段长度
+            //from sysobjects a, syscolumns b, systypes c
+            //where a.id = b.id and a.xtype = 'U' and b.xtype = c.xtype
+            //and a.name = 't_article' and b.name = 'id'
         }
         private void AddInitData(Type type)
         {
@@ -681,7 +701,7 @@ namespace AmuTools
     // 数据库condition拼接类
     public class Cd
     {
-        private List<string> list = new List<string>();
+        public List<string> list = new List<string>();
 
         public Cd(string condition = null, params object[] values)
         {
@@ -731,7 +751,7 @@ namespace AmuTools
     // 数据库orderby拼接类
     public class Ob
     {
-        private Dictionary<string, string> list = new Dictionary<string, string>();
+        public Dictionary<string, string> list = new Dictionary<string, string>();
         public int Count {
             get
             {

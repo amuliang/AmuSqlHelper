@@ -59,6 +59,7 @@ namespace AmuTools
         private IApiUnit _parent { get; set; }
         private string _return_description { get; set; }
         private Treturn _return_example { get; set; }
+        private List<Treturn> _return_examples { get; set; }
         #endregion
 
         #region 方法
@@ -169,6 +170,8 @@ namespace AmuTools
                 arg["description"] = i_arg.GetDescription();
                 arg["default"] = i_arg.GetDefault();
                 arg["level"] = i_arg.GetLevel().ToString();
+                arg["example"] = i_arg.GetExample();
+                arg["examples"] = i_arg.GetExamples();
                 args[key] = arg;
             }
             root["args"] = args;
@@ -180,6 +183,7 @@ namespace AmuTools
             }
             root["return_description"] = this.GetReturnDescription();
             root["return_example"] = this.GetReturnExample();
+            root["return_examples"] = this.GetReturnExamples();
             root["children"] = children;
             return root;
         }
@@ -192,6 +196,11 @@ namespace AmuTools
         public object GetReturnExample()
         {
             return this._return_example;
+        }
+
+        public object GetReturnExamples()
+        {
+            return this._return_examples;
         }
         #endregion
     }
@@ -209,6 +218,7 @@ namespace AmuTools
         Dictionary<string, object> GetApiJson();
         string GetReturnDescription();
         object GetReturnExample();
+        object GetReturnExamples();
     }
 
     public class ApiContext
@@ -227,6 +237,8 @@ namespace AmuTools
         public string DataType { get; set; }
         public ARGLEVEL Level { get; set; }
         public T Default { get; set; }
+        public T Example { get; set; }
+        public List<T> Examples { get; set; }
         public string Descrpition { get; set; }
         public int MaxLengh { get; set; }
         public APISTATUS LackStatus = APISTATUS.LACK_PARAM;
@@ -255,6 +267,16 @@ namespace AmuTools
         public object GetDefault()
         {
             return this.Default;
+        }
+
+        public object GetExample()
+        {
+            return this.Example;
+        }
+
+        public object GetExamples()
+        {
+            return this.Examples;
         }
 
         public ARGLEVEL GetLevel()
@@ -486,6 +508,8 @@ namespace AmuTools
         string GetDataType();
         string GetDescription();
         object GetDefault();
+        object GetExample();
+        object GetExamples();
         ARGLEVEL GetLevel();
         object Test(object value);
     }

@@ -11,6 +11,8 @@ namespace AmuTools
     public class ApiHelper
     {
         private IApiUnit root { get; set; }
+        private Action<ApiContext> _before = ctx => { };
+        private Func<ApiContext, object, object> _after = (ctx, result) => { return result; };
 
         public void Register(IApiUnit i_api_unit)
         {
@@ -36,7 +38,24 @@ namespace AmuTools
                     return null;
                 }
             }
-            return iau.Run(ctx);
+            this._before(ctx);
+            iau.RunBefore(ctx);
+            object result = iau.Run(ctx);
+            result = iau.RunAfter(ctx, result);
+            result = this._after(ctx, result);
+            return result;
+        }
+
+        public ApiHelper Before(Action<ApiContext> before_action)
+        {
+            this._before = before_action;
+            return this;
+        }
+
+        public ApiHelper After(Func<ApiContext, object, object> after_func)
+        {
+            this._after = after_func;
+            return this;
         }
     }
 
@@ -45,6 +64,7 @@ namespace AmuTools
     {
         #region 私有属性
         private Action<ApiContext> _body { get; set; }
+        private Action<ApiContext> _after { get; set; }
         private object _return_example { get; set; }
         private List<object> _return_examples { get; set; }
         #endregion
@@ -56,6 +76,7 @@ namespace AmuTools
             this._description = descrpition;
             this._args = new Dictionary<string, IArg>();
             this._body = ctx => {  };
+            this._after = (ctx) => {  };
             this._children = new Dictionary<string, IApiUnit>();
         }
 
@@ -65,9 +86,21 @@ namespace AmuTools
             return this;
         }
 
+        public ApiUnit Before(Action<ApiContext> before)
+        {
+            this._before = before;
+            return this;
+        }
+
         public ApiUnit Body(Action<ApiContext> body)
         {
             this._body = body;
+            return this;
+        }
+
+        public ApiUnit After(Action<ApiContext> after)
+        {
+            this._after = after;
             return this;
         }
 
@@ -79,7 +112,7 @@ namespace AmuTools
         }
         #endregion
 
-        #region 继承接口
+        #region 重写抽象成员
         public override object Run(ApiContext ctx)
         {
             ctx.Args = new Dictionary<string, object>();
@@ -89,6 +122,12 @@ namespace AmuTools
                 ctx.Args[key] = i_arg.Test(ctx.Request[key]);
             }
             _body(ctx);
+            return null;
+        }
+
+        protected override object PRunAfter(ApiContext ctx, object result)
+        {
+            this._after(ctx);
             return null;
         }
 
@@ -108,6 +147,7 @@ namespace AmuTools
     {
         #region 私有属性
         private Func<ApiContext, Treturn> _body { get; set; }
+        private Func<ApiContext, Treturn, object> _after { get; set; }
         private Treturn _return_example { get; set; }
         private List<Treturn> _return_examples { get; set; }
         #endregion
@@ -119,6 +159,7 @@ namespace AmuTools
             this._description = descrpition;
             this._args = new Dictionary<string, IArg>();
             this._body = ctx => { return default(Treturn); };
+            this._after = (ctx, result) => { return result; };
             this._children = new Dictionary<string, IApiUnit>();
             this._return_example = (Treturn)Activator.CreateInstance(typeof(Treturn));
         }
@@ -129,9 +170,21 @@ namespace AmuTools
             return this;
         }
 
+        public ApiUnit<Treturn> Before(Action<ApiContext> before)
+        {
+            this._before = before;
+            return this;
+        }
+
         public ApiUnit<Treturn> Body(Func<ApiContext, Treturn> body)
         {
             this._body = body;
+            return this;
+        }
+
+        public ApiUnit<Treturn> After(Func<ApiContext, Treturn, object> after)
+        {
+            this._after = after;
             return this;
         }
 
@@ -142,8 +195,8 @@ namespace AmuTools
             return this;
         }
         #endregion
-        
-        #region 继承接口
+
+        #region 重写抽象成员
         public override object Run(ApiContext ctx)
         {
             ctx.Args = new Dictionary<string, object>();
@@ -153,6 +206,11 @@ namespace AmuTools
                 ctx.Args[key] = i_arg.Test(ctx.Request[key]);
             }
             return _body(ctx);
+        }
+
+        protected override object PRunAfter(ApiContext ctx, object result)
+        {
+            return this._after(ctx, (Treturn)result);
         }
 
         public override object GetReturnExample()
@@ -176,10 +234,26 @@ namespace AmuTools
         protected Dictionary<string, IApiUnit> _children { get; set; }
         protected IApiUnit _parent { get; set; }
         protected string _return_description { get; set; }
+        protected Action<ApiContext> _before = ctx => { };
+        #endregion
+
+        #region 方法
         #endregion
 
         #region 继承接口
+        public void RunBefore(ApiContext ctx)
+        {
+            this._before(ctx);
+        }
+
         public abstract object Run(ApiContext ctx);
+
+        protected abstract object PRunAfter(ApiContext ctx, object result);
+
+        public object RunAfter(ApiContext ctx, object result)
+        {
+            return PRunAfter(ctx, result);
+        }
 
         public ApiUnit Register(string name, string descrpition = "")
         {
@@ -281,7 +355,9 @@ namespace AmuTools
         string GetName();
         string GetDescrpition();
         Dictionary<string, IArg> GetArgs();
+        void RunBefore(ApiContext ctx);
         object Run(ApiContext ctx);
+        object RunAfter(ApiContext ctx, object result);
         Dictionary<string, IApiUnit> GetChildren();
         ApiUnit Register(string name, string descrpition = "");
         ApiUnit<T> Register<T>(string name, string descrpition = "");

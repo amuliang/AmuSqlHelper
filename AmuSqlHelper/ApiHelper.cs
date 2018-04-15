@@ -41,23 +41,73 @@ namespace AmuTools
     }
 
     #region Api单元
-    public class ApiUnit : ApiUnit<Object>
-    {
-        public ApiUnit(string name, string descrpition = "") : base(name, descrpition)
-        {
-        }
-    }
-
-    public class ApiUnit<Treturn> : IApiUnit
+    public class ApiUnit : ApiUnitBase
     {
         #region 私有属性
-        private string _name { get; set; }
-        private string _description { get; set; }
-        private Dictionary<string, IArg> _args { get; set; }
+        private Action<ApiContext> _body { get; set; }
+        private object _return_example { get; set; }
+        private List<object> _return_examples { get; set; }
+        #endregion
+
+        #region 方法
+        public ApiUnit(string name, string descrpition = "")
+        {
+            this._name = name;
+            this._description = descrpition;
+            this._args = new Dictionary<string, IArg>();
+            this._body = ctx => {  };
+            this._children = new Dictionary<string, IApiUnit>();
+        }
+
+        public ApiUnit AddArg(IArg arg)
+        {
+            this._args.Add(arg.GetName(), arg);
+            return this;
+        }
+
+        public ApiUnit Body(Action<ApiContext> body)
+        {
+            this._body = body;
+            return this;
+        }
+
+        public ApiUnit Return(string description, object example = default(object))
+        {
+            this._return_description = description;
+            if (example != null) this._return_example = example;
+            return this;
+        }
+        #endregion
+
+        #region 继承接口
+        public override object Run(ApiContext ctx)
+        {
+            ctx.Args = new Dictionary<string, object>();
+            foreach (string key in this._args.Keys)
+            {
+                IArg i_arg = this._args[key];
+                ctx.Args[key] = i_arg.Test(ctx.Request[key]);
+            }
+            _body(ctx);
+            return null;
+        }
+
+        public override object GetReturnExample()
+        {
+            return this._return_example;
+        }
+
+        public override object GetReturnExamples()
+        {
+            return this._return_examples;
+        }
+        #endregion
+    }
+
+    public class ApiUnit<Treturn> : ApiUnitBase
+    {
+        #region 私有属性
         private Func<ApiContext, Treturn> _body { get; set; }
-        private Dictionary<string, IApiUnit> _children { get; set; }
-        private IApiUnit _parent { get; set; }
-        private string _return_description { get; set; }
         private Treturn _return_example { get; set; }
         private List<Treturn> _return_examples { get; set; }
         #endregion
@@ -92,8 +142,45 @@ namespace AmuTools
             return this;
         }
         #endregion
+        
+        #region 继承接口
+        public override object Run(ApiContext ctx)
+        {
+            ctx.Args = new Dictionary<string, object>();
+            foreach (string key in this._args.Keys)
+            {
+                IArg i_arg = this._args[key];
+                ctx.Args[key] = i_arg.Test(ctx.Request[key]);
+            }
+            return _body(ctx);
+        }
+
+        public override object GetReturnExample()
+        {
+            return this._return_example;
+        }
+
+        public override object GetReturnExamples()
+        {
+            return this._return_examples;
+        }
+        #endregion
+    }
+
+    public abstract class ApiUnitBase: IApiUnit
+    {
+        #region 私有属性
+        protected string _name { get; set; }
+        protected string _description { get; set; }
+        protected Dictionary<string, IArg> _args { get; set; }
+        protected Dictionary<string, IApiUnit> _children { get; set; }
+        protected IApiUnit _parent { get; set; }
+        protected string _return_description { get; set; }
+        #endregion
 
         #region 继承接口
+        public abstract object Run(ApiContext ctx);
+
         public ApiUnit Register(string name, string descrpition = "")
         {
             ApiUnit au = new ApiUnit(name, descrpition);
@@ -144,17 +231,6 @@ namespace AmuTools
             return this._args;
         }
 
-        public object Run(ApiContext ctx)
-        {
-            ctx.Args = new Dictionary<string, object>();
-            foreach(string key in this._args.Keys)
-            {
-                IArg i_arg = this._args[key];
-                ctx.Args[key] = i_arg.Test(ctx.Request[key]);
-            }
-            return _body(ctx);
-        }
-
         public Dictionary<string, object> GetApiJson()
         {
             Dictionary<string, object> root = new Dictionary<string, object>();
@@ -193,15 +269,9 @@ namespace AmuTools
             return this._return_description;
         }
 
-        public object GetReturnExample()
-        {
-            return this._return_example;
-        }
+        public abstract object GetReturnExample();
 
-        public object GetReturnExamples()
-        {
-            return this._return_examples;
-        }
+        public abstract object GetReturnExamples();
         #endregion
     }
 
@@ -227,6 +297,7 @@ namespace AmuTools
         public Dictionary<string, object> Args { get; set; }
         public HttpSessionStateBase Session { get; set; }
         public HttpRequestBase Request { get; set; }
+        public HttpResponseBase Response { get; set; }
     }
     #endregion
 

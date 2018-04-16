@@ -44,22 +44,22 @@ namespace AmuTools
                     {
                         fa = new FieldAttribute();
                     }
-                    if (fa.FieldName == null || fa.FieldName == "") fa.FieldName = pi.Name;
-                    if(fa.IsPrimaryKey)
-                    {
-                        fa.Nullable = false;
-                    }
-                    else if (fa.Nullable == false && fa.Default == null)
-                    {
-                        throw new Exception(string.Format("模型类{0}的字段{1}不可为空，需要提供Default默认值", m.TableName, pi.Name));
-                    }
-                    fa.SetPropertyInfo(pi);
-                    if(fa.FieldName == m.PrimaryKey)
+                    if (fa.FieldName == null || fa.FieldName == "") fa.FieldName = pi.Name; // 检测是否指定了数据库表名
+                    if(fa.FieldName == m.PrimaryKey) // 检测是否是主键
                     {
                         fa.SetIsPrimaryKey(true);
                         fa.SetIdentityInsert(m.IdentityInsert);
                     }
-                    if (fa.DataType == null) fa.DataType = GetDataType(fa.PropertyInfo.PropertyType);
+                    if (fa.IsPrimaryKey) // 如果是主键则不能为空
+                    {
+                        fa.Nullable = false;
+                    }
+                    else if (fa.Nullable == false && fa.Default == null) // 如果可为空，则必须指定默认值
+                    {
+                        throw new Exception(string.Format("模型类{0}的字段{1}不可为空，需要提供Default默认值", m.TableName, pi.Name));
+                    }
+                    fa.SetPropertyInfo(pi);
+                    if (fa.DataType == null) fa.DataType = GetDataType(fa.PropertyInfo.PropertyType); // 如果未指定数据类型，则指定默认类型
 
                     if (fa.Storageable) temp.StorageableFields.Add(pi.Name, fa);
                     if (fa.Webable) temp.WebableFields.Add(pi.Name, fa);
@@ -557,12 +557,14 @@ namespace AmuTools
         public string PrimaryKey { get; set; } // 主键
         public bool IdentityInsert { get; set; } // 识别插入，即主键自增
         public string BaseID { get; set; } // 当IdentityInsert为false时，数据从这里递增
+        public string Description { get; set; }
 
         public ModelAttribute()
         {
             PrimaryKey = "id";
             IdentityInsert = true;
             BaseID = "0";
+            Description = "";
         }
     }
 
@@ -570,6 +572,7 @@ namespace AmuTools
     public class FieldAttribute : Attribute
     {
         public string FieldName { get; set; } // 字段名称
+        public string Description { get; set; }
         public bool Storageable { get; set; } // 是否是数据库字段,是否可存储
         public bool Webable { get; set; } // 是否可以被渲染到前端
         public bool Nullable { get; set; } // 是否允许为null
@@ -604,6 +607,7 @@ namespace AmuTools
 
         public FieldAttribute()
         {
+            Description = "";
             Storageable = true;
             Webable = true;
             Nullable = true;

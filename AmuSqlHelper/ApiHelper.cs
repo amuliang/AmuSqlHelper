@@ -86,6 +86,15 @@ namespace AmuTools
             return this;
         }
 
+        public ApiUnit AddArgs(List<IArg> args)
+        {
+            foreach(IArg i in args)
+            {
+                this._args.Add(i.GetName(), i);
+            }
+            return this;
+        }
+
         public ApiUnit Before(Action<ApiContext> before)
         {
             this._before = before;
@@ -167,6 +176,15 @@ namespace AmuTools
         public ApiUnit<Treturn> AddArg(IArg arg)
         {
             this._args.Add(arg.GetName(), arg);
+            return this;
+        }
+
+        public ApiUnit<Treturn> AddArgs(List<IArg> args)
+        {
+            foreach (IArg i in args)
+            {
+                this._args.Add(i.GetName(), i);
+            }
             return this;
         }
 

@@ -23,7 +23,18 @@ namespace AmuTools
         private bool stack_opened = false;
         private List<SqlUnit> stack = new List<SqlUnit>();
 
-        public string ConnectionString { get { return string.Format("data source={0};initial catalog={1};User Id={2};Password={3}", ServerName, DatabaseName, UserName, Password); } }
+        private string _ConnectionString { get; set; }
+        public string ConnectionString {
+            get
+            {
+                if (_ConnectionString != null && _ConnectionString != "") return _ConnectionString;
+                else return string.Format("data source={0};initial catalog={1};User Id={2};Password={3}", ServerName, DatabaseName, UserName, Password);
+            }
+            set
+            {
+                _ConnectionString = value;
+            }
+        }
         public string ServerName { get; set; }
         public string DatabaseName { get; set; }
         public string UserName { get; set; }
@@ -44,6 +55,10 @@ namespace AmuTools
         public SqlHelper()
         {
 
+        }
+        public SqlHelper(string connecting_string)
+        {
+            _ConnectionString = connecting_string;
         }
         public SqlHelper(string server, string database, string username, string password)
         {

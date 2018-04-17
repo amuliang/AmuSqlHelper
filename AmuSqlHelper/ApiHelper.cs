@@ -8,21 +8,21 @@ using Newtonsoft.Json;
 
 namespace AmuTools
 {
-    public class ApiHelper
+    public class ApiHelper<TContext> where TContext : ApiContextBase
     {
-        private IApiUnit root { get; set; }
-        private Action<ApiContext> _before = ctx => { };
-        private Func<ApiContext, object, object> _after = (ctx, result) => { return result; };
+        private IApiUnit<TContext> root { get; set; }
+        private Action<TContext> _before = ctx => { };
+        private Func<TContext, object, object> _after = (ctx, result) => { return result; };
 
-        public void Register(IApiUnit i_api_unit)
+        public void Register(IApiUnit<TContext> i_api_unit)
         {
             this.root = i_api_unit;
         }
 
-        public object Request(ApiContext ctx)
+        public object Request(TContext ctx)
         {
             string[] actions = ctx.Url.Split('/');
-            IApiUnit iau = this.root;
+            IApiUnit<TContext> iau = this.root;
 
             if (actions.Length == 0) return null;
             if (actions[0] != this.root.GetName()) return null;
@@ -38,6 +38,7 @@ namespace AmuTools
                     return null;
                 }
             }
+            ctx.TestArgs(iau.GetArgs());
             this._before(ctx);
             iau.RunBefore(ctx);
             object result = iau.Run(ctx);
@@ -46,13 +47,13 @@ namespace AmuTools
             return result;
         }
 
-        public ApiHelper Before(Action<ApiContext> before_action)
+        public ApiHelper<TContext> Before(Action<TContext> before_action)
         {
             this._before = before_action;
             return this;
         }
 
-        public ApiHelper After(Func<ApiContext, object, object> after_func)
+        public ApiHelper<TContext> After(Func<TContext, object, object> after_func)
         {
             this._after = after_func;
             return this;
@@ -60,11 +61,11 @@ namespace AmuTools
     }
 
     #region Api单元
-    public class ApiUnit : ApiUnitBase
+    public class ApiUnit<TContext> : ApiUnitBase<TContext>
     {
         #region 私有属性
-        private Action<ApiContext> _body { get; set; }
-        private Action<ApiContext> _after { get; set; }
+        private Action<TContext> _body { get; set; }
+        private Action<TContext> _after { get; set; }
         private object _return_example { get; set; }
         private List<object> _return_examples { get; set; }
         #endregion
@@ -77,16 +78,16 @@ namespace AmuTools
             this._args = new Dictionary<string, IArg>();
             this._body = ctx => {  };
             this._after = (ctx) => {  };
-            this._children = new Dictionary<string, IApiUnit>();
+            this._children = new Dictionary<string, IApiUnit<TContext>>();
         }
 
-        public ApiUnit AddArg(IArg arg)
+        public ApiUnit<TContext> AddArg(IArg arg)
         {
             this._args.Add(arg.GetName(), arg);
             return this;
         }
 
-        public ApiUnit AddArgs(List<IArg> args)
+        public ApiUnit<TContext> AddArgs(List<IArg> args)
         {
             foreach(IArg i in args)
             {
@@ -95,25 +96,25 @@ namespace AmuTools
             return this;
         }
 
-        public ApiUnit Before(Action<ApiContext> before)
+        public ApiUnit<TContext> Before(Action<TContext> before)
         {
             this._before = before;
             return this;
         }
 
-        public ApiUnit Body(Action<ApiContext> body)
+        public ApiUnit<TContext> Body(Action<TContext> body)
         {
             this._body = body;
             return this;
         }
 
-        public ApiUnit After(Action<ApiContext> after)
+        public ApiUnit<TContext> After(Action<TContext> after)
         {
             this._after = after;
             return this;
         }
 
-        public ApiUnit Return(string description, object example = default(object))
+        public ApiUnit<TContext> Return(string description, object example = default(object))
         {
             this._return_description = description;
             if (example != null) this._return_example = example;
@@ -122,19 +123,13 @@ namespace AmuTools
         #endregion
 
         #region 重写抽象成员
-        public override object Run(ApiContext ctx)
+        public override object Run(TContext ctx)
         {
-            ctx.Args = new Dictionary<string, object>();
-            foreach (string key in this._args.Keys)
-            {
-                IArg i_arg = this._args[key];
-                ctx.Args[key] = i_arg.Test(ctx.Request[key]);
-            }
             _body(ctx);
             return null;
         }
 
-        protected override object PRunAfter(ApiContext ctx, object result)
+        protected override object PRunAfter(TContext ctx, object result)
         {
             this._after(ctx);
             return null;
@@ -152,13 +147,13 @@ namespace AmuTools
         #endregion
     }
 
-    public class ApiUnit<Treturn> : ApiUnitBase
+    public class ApiUnit<TContext, TReturn> : ApiUnitBase<TContext>
     {
         #region 私有属性
-        private Func<ApiContext, Treturn> _body { get; set; }
-        private Func<ApiContext, Treturn, object> _after { get; set; }
-        private Treturn _return_example { get; set; }
-        private List<Treturn> _return_examples { get; set; }
+        private Func<TContext, TReturn> _body { get; set; }
+        private Func<TContext, TReturn, object> _after { get; set; }
+        private TReturn _return_example { get; set; }
+        private List<TReturn> _return_examples { get; set; }
         #endregion
 
         #region 方法
@@ -167,19 +162,19 @@ namespace AmuTools
             this._name = name;
             this._description = descrpition;
             this._args = new Dictionary<string, IArg>();
-            this._body = ctx => { return default(Treturn); };
+            this._children = new Dictionary<string, IApiUnit<TContext>>();
+            this._return_example = (TReturn)Activator.CreateInstance(typeof(TReturn));
+            this._body = ctx => { return default(TReturn); };
             this._after = (ctx, result) => { return result; };
-            this._children = new Dictionary<string, IApiUnit>();
-            this._return_example = (Treturn)Activator.CreateInstance(typeof(Treturn));
         }
 
-        public ApiUnit<Treturn> AddArg(IArg arg)
+        public ApiUnit<TContext, TReturn> AddArg(IArg arg)
         {
             this._args.Add(arg.GetName(), arg);
             return this;
         }
 
-        public ApiUnit<Treturn> AddArgs(List<IArg> args)
+        public ApiUnit<TContext, TReturn> AddArgs(List<IArg> args)
         {
             foreach (IArg i in args)
             {
@@ -188,25 +183,25 @@ namespace AmuTools
             return this;
         }
 
-        public ApiUnit<Treturn> Before(Action<ApiContext> before)
+        public ApiUnit<TContext, TReturn> Before(Action<TContext> before)
         {
             this._before = before;
             return this;
         }
 
-        public ApiUnit<Treturn> Body(Func<ApiContext, Treturn> body)
+        public ApiUnit<TContext, TReturn> Body(Func<TContext, TReturn> body)
         {
             this._body = body;
             return this;
         }
 
-        public ApiUnit<Treturn> After(Func<ApiContext, Treturn, object> after)
+        public ApiUnit<TContext, TReturn> After(Func<TContext, TReturn, object> after)
         {
             this._after = after;
             return this;
         }
 
-        public ApiUnit<Treturn> Return(string description, Treturn example = default(Treturn))
+        public ApiUnit<TContext, TReturn> Return(string description, TReturn example = default(TReturn))
         {
             this._return_description = description;
             if (example != null) this._return_example = example;
@@ -215,20 +210,14 @@ namespace AmuTools
         #endregion
 
         #region 重写抽象成员
-        public override object Run(ApiContext ctx)
+        public override object Run(TContext ctx)
         {
-            ctx.Args = new Dictionary<string, object>();
-            foreach (string key in this._args.Keys)
-            {
-                IArg i_arg = this._args[key];
-                ctx.Args[key] = i_arg.Test(ctx.Request[key]);
-            }
-            return _body(ctx);
+            return this._body(ctx);
         }
 
-        protected override object PRunAfter(ApiContext ctx, object result)
+        protected override object PRunAfter(TContext ctx, object result)
         {
-            return this._after(ctx, (Treturn)result);
+            return this._after(ctx, (TReturn)result);
         }
 
         public override object GetReturnExample()
@@ -243,53 +232,53 @@ namespace AmuTools
         #endregion
     }
 
-    public abstract class ApiUnitBase: IApiUnit
+    public abstract class ApiUnitBase<TContext> : IApiUnit<TContext>
     {
         #region 私有属性
         protected string _name { get; set; }
         protected string _description { get; set; }
         protected Dictionary<string, IArg> _args { get; set; }
-        protected Dictionary<string, IApiUnit> _children { get; set; }
-        protected IApiUnit _parent { get; set; }
+        protected Dictionary<string, IApiUnit<TContext>> _children { get; set; }
+        protected IApiUnit<TContext> _parent { get; set; }
         protected string _return_description { get; set; }
-        protected Action<ApiContext> _before = ctx => { };
+        protected Action<TContext> _before = ctx => { };
         #endregion
 
         #region 方法
         #endregion
 
         #region 继承接口
-        public void RunBefore(ApiContext ctx)
+        public void RunBefore(TContext ctx)
         {
             this._before(ctx);
         }
 
-        public abstract object Run(ApiContext ctx);
+        public abstract object Run(TContext ctx);
 
-        protected abstract object PRunAfter(ApiContext ctx, object result);
+        protected abstract object PRunAfter(TContext ctx, object result);
 
-        public object RunAfter(ApiContext ctx, object result)
+        public object RunAfter(TContext ctx, object result)
         {
             return PRunAfter(ctx, result);
         }
 
-        public ApiUnit Register(string name, string descrpition = "")
+        public ApiUnit<TContext> Register(string name, string descrpition = "")
         {
-            ApiUnit au = new ApiUnit(name, descrpition);
+            ApiUnit< TContext> au = new ApiUnit<TContext>(name, descrpition);
             au._parent = this;
             this._Register(name, au);
             return au;
         }
 
-        public ApiUnit<T> Register<T>(string name, string descrpition = "")
+        public ApiUnit<TContext, TReturn> Register<TReturn>(string name, string descrpition = "")
         {
-            ApiUnit<T> au = new ApiUnit<T>(name, descrpition);
+            ApiUnit<TContext, TReturn> au = new ApiUnit<TContext, TReturn>(name, descrpition);
             au._parent = this;
             this._Register(name, au);
             return au;
         }
 
-        private void _Register(string name, IApiUnit au)
+        private void _Register(string name, IApiUnit<TContext> au)
         {
             if (this._children.ContainsKey(name))
             {
@@ -298,7 +287,7 @@ namespace AmuTools
             this._children.Add(name, au);
         }
 
-        public IApiUnit GetParent()
+        public IApiUnit<TContext> GetParent()
         {
             return _parent;
         }
@@ -313,7 +302,7 @@ namespace AmuTools
             return _description;
         }
 
-        public Dictionary<string, IApiUnit> GetChildren()
+        public Dictionary<string, IApiUnit<TContext>> GetChildren()
         {
             return _children;
         }
@@ -346,7 +335,7 @@ namespace AmuTools
             Dictionary<string, object> children = new Dictionary<string, object>();
             foreach(string key in this._children.Keys)
             {
-                IApiUnit iau = this._children[key];
+                IApiUnit<TContext> iau = this._children[key];
                 children[key] = iau.GetApiJson();
             }
             root["return_description"] = this.GetReturnDescription();
@@ -367,31 +356,54 @@ namespace AmuTools
         #endregion
     }
 
-    public interface IApiUnit
+    public interface IApiUnit<TContext>
     {
-        IApiUnit GetParent();
+        IApiUnit<TContext> GetParent();
         string GetName();
         string GetDescrpition();
         Dictionary<string, IArg> GetArgs();
-        void RunBefore(ApiContext ctx);
-        object Run(ApiContext ctx);
-        object RunAfter(ApiContext ctx, object result);
-        Dictionary<string, IApiUnit> GetChildren();
-        ApiUnit Register(string name, string descrpition = "");
-        ApiUnit<T> Register<T>(string name, string descrpition = "");
+        void RunBefore(TContext ctx);
+        object Run(TContext ctx);
+        object RunAfter(TContext ctx, object result);
+        Dictionary<string, IApiUnit<TContext>> GetChildren();
+        ApiUnit<TContext> Register(string name, string descrpition = "");
+        ApiUnit<TContext, TReturn> Register<TReturn>(string name, string descrpition = "");
         Dictionary<string, object> GetApiJson();
         string GetReturnDescription();
         object GetReturnExample();
         object GetReturnExamples();
     }
+    #endregion
 
-    public class ApiContext
+    #region 传参类ApiContextBase，可自定义，只要继承传参类ApiContextBase，默认提供了ApiContext
+    public class ApiContext: ApiContextBase
     {
-        public string Url { get; set; }
-        public Dictionary<string, object> Args { get; set; }
         public HttpSessionStateBase Session { get; set; }
         public HttpRequestBase Request { get; set; }
         public HttpResponseBase Response { get; set; }
+        protected override object GetArg(string arg_name)
+        {
+            return Request[arg_name];
+        }
+    }
+
+    public abstract class ApiContextBase
+    {
+        public string Url { get; set; }
+        public Dictionary<string, object> Args { get; set; }
+
+        protected abstract object GetArg(string arg_name);
+
+        // 根据IArg检测参数
+        public void TestArgs(Dictionary<string, IArg> iargs)
+        {
+            this.Args = new Dictionary<string, object>();
+            foreach (string key in iargs.Keys)
+            {
+                IArg i_arg = iargs[key];
+                this.Args[key] = i_arg.Test(this.GetArg(key));
+            }
+        }
     }
     #endregion
 

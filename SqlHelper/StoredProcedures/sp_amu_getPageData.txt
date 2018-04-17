@@ -1,0 +1,36 @@
+-- USE [database]
+-- GO
+/****** Object:  StoredProcedure [dbo].[sp_amu_getPageData]    Script Date: 2017/8/9 12:08:37 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+-- =============================================
+-- Author:		<Author,,Name>
+-- Create date: <Create Date,,>
+-- Description:	<Description,,>
+-- =============================================
+CREATE PROCEDURE [dbo].[sp_amu_getPageData]
+	@table_name nvarchar(500),
+	@condition nvarchar(500),
+	@order_by nvarchar(500),
+	@skip INT, 
+	@take INT
+AS
+BEGIN
+	-- 首先声明变量
+	DECLARE @sql nvarchar(4000)
+	DECLARE @where nvarchar(500)
+	-- 判断是否存在where相关内容
+	if(@condition is null or @condition = '') begin
+		set @where = ''
+	end else begin 
+		set @where = ' where ' + @condition
+	end
+	-- 组合成sql语句
+	set @sql = 
+		'with temptbl as ( SELECT ROW_NUMBER() over (order by '+ @order_by + ') AS Row, * from ' + @table_name + @where + ')'
+		+' SELECT * FROM temptbl where Row between '+ str(@skip+1) + ' and ' + str(@skip+@take)
+	-- 执行语句
+	exec(@sql)
+END

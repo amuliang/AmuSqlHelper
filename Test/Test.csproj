@@ -70,13 +70,25 @@
     <Otherwise />
   </Choose>
   <ItemGroup>
-    <Compile Include="UnitTest1.cs" />
+    <Compile Include="ApiHelperTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\AmuSqlHelper\AmuSqlHelper.csproj">
+    <ProjectReference Include="..\AmuTools\AmuTools.csproj">
       <Project>{7f8c9cef-18ff-4be7-8e09-b9574ba92c09}</Project>
-      <Name>AmuSqlHelper</Name>
+      <Name>AmuTools</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\ApiHelper\ApiHelper.csproj">
+      <Project>{8f0a2da6-3860-4397-b346-6392531f88e5}</Project>
+      <Name>ApiHelper</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\SqlHelper\SqlHelper.csproj">
+      <Project>{b2641f70-0f79-45c5-b79a-736e5d0af690}</Project>
+      <Name>SqlHelper</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\TimerHelper\TimerHelper.csproj">
+      <Project>{8b11a5ca-90a4-4d13-b6fc-059e2d034fbd}</Project>
+      <Name>TimerHelper</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

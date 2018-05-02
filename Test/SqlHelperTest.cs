@@ -13,6 +13,7 @@ namespace Test
             //
             SqlHelper sh = new SqlHelper();
             ParsedModel pm = SqlHelper.GetParsedModel(typeof(Person));
+            System.Reflection.PropertyInfo[] ps = typeof(Person).GetProperties();
 
             // 测试
             Assert.True(pm.StorageableFields.ContainsKey("id"));
@@ -20,6 +21,14 @@ namespace Test
             Assert.False(pm.StorageableFields.ContainsKey("private_name"));
             Assert.False(pm.StorageableFields.ContainsKey("just_read_name"));
             Assert.False(pm.StorageableFields.ContainsKey("static_name"));
+            Assert.False(pm.StorageableFields.ContainsKey("static_just_read_name"));
+
+            Assert.True(pm.WebableFields.ContainsKey("id"));
+            Assert.True(pm.WebableFields.ContainsKey("name"));
+            Assert.False(pm.WebableFields.ContainsKey("private_name"));
+            Assert.True(pm.WebableFields.ContainsKey("just_read_name"));
+            Assert.False(pm.WebableFields.ContainsKey("static_name"));
+            Assert.False(pm.WebableFields.ContainsKey("static_just_read_name"));
         }
 
     }
@@ -34,6 +43,7 @@ namespace Test
         private string private_name { get; set; }
         public string just_read_name { get; }
         static public string static_name { get; set; }
-        
+        static public string static_just_read_name { get; }
+
     }
 }

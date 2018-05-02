@@ -36,7 +36,7 @@ namespace AmuTools
                 temp.WebableFields = new Dictionary<string, FieldAttribute>();
                 temp.StorageableFields = new Dictionary<string, FieldAttribute>();
 
-                PropertyInfo[] properties = type.GetProperties().Where(r => r.SetMethod != null && r.SetMethod.IsStatic == false).ToArray(); // 获得此模型的公共属性
+                PropertyInfo[] properties = type.GetProperties().Where(r => r.GetMethod != null && r.GetMethod.IsStatic == false).ToArray(); // 获得此模型的公共属性
                 foreach (PropertyInfo pi in properties)
                 {
                     FieldAttribute fa = pi.GetCustomAttribute<FieldAttribute>();

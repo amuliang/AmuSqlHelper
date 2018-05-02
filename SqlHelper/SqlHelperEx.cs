@@ -36,7 +36,7 @@ namespace AmuTools
                 temp.WebableFields = new Dictionary<string, FieldAttribute>();
                 temp.StorageableFields = new Dictionary<string, FieldAttribute>();
 
-                PropertyInfo[] properties = type.GetProperties(); // 获得此模型的公共属性
+                PropertyInfo[] properties = type.GetProperties().Where(r => r.SetMethod != null && r.SetMethod.IsStatic == false).ToArray(); // 获得此模型的公共属性
                 foreach (PropertyInfo pi in properties)
                 {
                     FieldAttribute fa = pi.GetCustomAttribute<FieldAttribute>();
@@ -61,8 +61,8 @@ namespace AmuTools
                     fa.SetPropertyInfo(pi);
                     if (fa.DataType == null) fa.DataType = GetDataType(fa.PropertyInfo.PropertyType); // 如果未指定数据类型，则指定默认类型
 
-                    if (fa.Storageable) temp.StorageableFields.Add(pi.Name, fa);
-                    if (fa.Webable) temp.WebableFields.Add(pi.Name, fa);
+                    if (fa.Storageable && fa.PropertyInfo.CanRead && fa.PropertyInfo.CanWrite) temp.StorageableFields.Add(pi.Name, fa);
+                    if (fa.Webable && fa.PropertyInfo.CanRead) temp.WebableFields.Add(pi.Name, fa);
 
                 }
                 ParsedModels.Add(type, temp);

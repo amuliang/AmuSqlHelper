@@ -185,18 +185,18 @@ namespace AmuTools
             stack_opened = false;
         }
 
-        public void RunStack()
+        public SqlResult RunStack()
         {
             CloseStack();
             string all_command = "";
-            if (stack.Count == 0) return;
+            if (stack.Count == 0) return new SqlResult(null, 0, null, null);
             for(int i = 0; i < stack.Count; i++)
             {
                 SqlUnit su = stack[i];
                 all_command += su.command + ";";
                 //this.Execute<Object>(su.command, su.command_type, su.execute_non_query, su.sqlparams);
             }
-            this.Set(all_command);
+            return this.Set(all_command);
         }
 
         public SqlParameter CreateSqlParameter(string name, SqlDbType dbtype)

@@ -220,6 +220,16 @@ namespace AmuTools
         {
             return Insert(typeof(T), obj);
         }
+        public int Insert<T>(List<T> obj_list) where T : class, new()
+        {
+            SqlHelper sh = new SqlHelper(ConnectionString);
+            sh.OpenStack();
+            for(int i = 0; i < obj_list.Count; i++)
+            {
+                Insert<T>(obj_list[i]);
+            }
+            return sh.RunStack().EffectedLineCount;
+        }
         
         public int Update<T>(T obj) where T : class, new()
         {
@@ -437,6 +447,7 @@ namespace AmuTools
             if (type == typeof(int)) return "int";
             else if (type == typeof(string)) return "nvarchar(50)";
             else if (type == typeof(double)) return "numeric(18,0)";
+            else if (type == typeof(DateTime)) return "datetime";
             return "nvarchar(50)";
         }
         public bool TestDatabaseExists()
